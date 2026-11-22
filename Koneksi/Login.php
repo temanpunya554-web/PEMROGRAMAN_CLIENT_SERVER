@@ -84,5 +84,8 @@ try {
     echo json_encode(["success" => true, "role" => $_SESSION["role"]]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(["success" => false, "message" => "Terjadi kesalahan pada server."]);
+    echo json_encode([
+        "success" => false,
+        "message" => "Terjadi kesalahan pada server: " . $error->getMessage(),
+    ]);
 }
