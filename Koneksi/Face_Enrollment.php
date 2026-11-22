@@ -1,4 +1,5 @@
 <?php
+ini_set("display_errors", "0");
 header("Content-Type: application/json; charset=utf-8");
 session_start();
 
@@ -26,6 +27,7 @@ if (
     faceEnrollmentRespond(400, false, "Permintaan tidak valid. Muat ulang halaman dan coba lagi.");
 }
 
+require_once __DIR__ . "/Face_Service_Client.php";
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 $savedPhotoPath = null;
 
@@ -79,42 +81,40 @@ try {
         faceEnrollmentRespond(400, false, "Persetujuan penyimpanan foto wajah diperlukan.");
     }
 
-    if (!isset($_FILES["face_photo"]) || !is_array($_FILES["face_photo"])) {
-        faceEnrollmentRespond(400, false, "Ambil foto wajah terlebih dahulu.");
+    try {
+        $challenge = faceConsumeLivenessChallenge(
+            "face_enrollment_liveness",
+            $_POST["challenge"] ?? "",
+            $_POST["challenge_nonce"] ?? ""
+        );
+        [$firstFrames, $secondFrames] = faceDecodeFrameGroups();
+    } catch (FaceServiceException $error) {
+        faceEnrollmentRespond($error->getStatusCode(), false, $error->getMessage());
     }
 
-    $photo = $_FILES["face_photo"];
-    if ($photo["error"] !== UPLOAD_ERR_OK || !is_uploaded_file($photo["tmp_name"])) {
-        faceEnrollmentRespond(400, false, "Foto tidak berhasil diunggah. Silakan coba lagi.");
-    }
-    if ($photo["size"] < 1 || $photo["size"] > 2 * 1024 * 1024) {
-        faceEnrollmentRespond(400, false, "Ukuran foto maksimal 2 MB.");
-    }
-
-    $imageInfo = getimagesize($photo["tmp_name"]);
-    $mimeType = (new finfo(FILEINFO_MIME_TYPE))->file($photo["tmp_name"]);
+    $faceResult = faceServiceRequest("/v1/enroll", [
+        "challenge" => $challenge,
+        "first_frames" => $firstFrames,
+        "second_frames" => $secondFrames,
+    ]);
+    $descriptor = $faceResult["embedding"] ?? null;
     if (
-        $imageInfo === false ||
-        $mimeType !== "image/jpeg" ||
-        $imageInfo[0] < 320 ||
-        $imageInfo[1] < 320 ||
-        $imageInfo[0] > 3000 ||
-        $imageInfo[1] > 3000
+        ($faceResult["success"] ?? false) !== true ||
+        ($faceResult["model"] ?? "") !== FACE_SERVICE_MODEL_VERSION ||
+        !is_array($descriptor) ||
+        count($descriptor) < 1 ||
+        count($descriptor) > 2048
     ) {
-        faceEnrollmentRespond(400, false, "Foto harus berupa JPEG dengan ukuran sisi 320 sampai 3000 piksel.");
-    }
-
-    $descriptorRaw = $_POST["face_descriptor"] ?? "";
-    $descriptor = json_decode($descriptorRaw, true);
-    if (!is_array($descriptor) || count($descriptor) !== 128) {
-        faceEnrollmentRespond(400, false, "Ciri wajah tidak berhasil dibuat. Pastikan hanya satu wajah terlihat, lalu ambil foto ulang.");
+        throw new RuntimeException("Face service returned an invalid enrollment result.");
     }
     foreach ($descriptor as $value) {
         if (!is_numeric($value) || !is_finite((float) $value)) {
             faceEnrollmentRespond(400, false, "Data ciri wajah tidak valid.");
         }
     }
-    $descriptorJson = json_encode(array_map("floatval", $descriptor));
+    $descriptorJson = json_encode(array_map("floatval", $descriptor), JSON_THROW_ON_ERROR);
+    $modelVersion = FACE_SERVICE_MODEL_VERSION;
+    $photoBytes = faceDecodeJpegFrame($firstFrames[1]);
 
     $uploadDirectory = dirname(__DIR__) . DIRECTORY_SEPARATOR . "Uploads" . DIRECTORY_SEPARATOR
         . "Mahasiswa" . DIRECTORY_SEPARATOR . "FaceEnrollment";
@@ -124,7 +124,10 @@ try {
 
     $filename = bin2hex(random_bytes(16)) . ".jpg";
     $photoFile = $uploadDirectory . DIRECTORY_SEPARATOR . $filename;
-    if (!move_uploaded_file($photo["tmp_name"], $photoFile)) {
+    if (file_put_contents($photoFile, $photoBytes, LOCK_EX) !== strlen($photoBytes)) {
+        if (is_file($photoFile)) {
+            unlink($photoFile);
+        }
         throw new RuntimeException("Face enrollment photo could not be saved.");
     }
     $savedPhotoPath = $filename;
@@ -138,10 +141,10 @@ try {
 
     $save = mysqli_prepare(
         $conn,
-        "INSERT INTO `mahasiswa_face_enrollments` (`Username`, `PhotoPath`, `FaceDescriptor`) VALUES (?, ?, ?)
-         ON DUPLICATE KEY UPDATE `PhotoPath` = VALUES(`PhotoPath`), `FaceDescriptor` = VALUES(`FaceDescriptor`), `UpdatedAt` = CURRENT_TIMESTAMP"
+        "INSERT INTO `mahasiswa_face_enrollments` (`Username`, `PhotoPath`, `FaceDescriptor`, `ModelVersion`) VALUES (?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE `PhotoPath` = VALUES(`PhotoPath`), `FaceDescriptor` = VALUES(`FaceDescriptor`), `ModelVersion` = VALUES(`ModelVersion`), `UpdatedAt` = CURRENT_TIMESTAMP"
     );
-    mysqli_stmt_bind_param($save, "sss", $username, $filename, $descriptorJson);
+    mysqli_stmt_bind_param($save, "ssss", $username, $filename, $descriptorJson, $modelVersion);
     mysqli_stmt_execute($save);
     mysqli_stmt_close($save);
 
@@ -152,7 +155,17 @@ try {
         }
     }
 
-    faceEnrollmentRespond(200, true, "Pendaftaran wajah dan ciri biometrik berhasil disimpan.");
+    faceEnrollmentRespond(200, true, "Pendaftaran wajah lulus pemeriksaan kamera dan berhasil disimpan.");
+} catch (FaceServiceException $error) {
+    if (is_string($savedPhotoPath)) {
+        $savedPhotoFile = dirname(__DIR__) . DIRECTORY_SEPARATOR . "Uploads" . DIRECTORY_SEPARATOR
+            . "Mahasiswa" . DIRECTORY_SEPARATOR . "FaceEnrollment" . DIRECTORY_SEPARATOR . $savedPhotoPath;
+        if (is_file($savedPhotoFile)) {
+            unlink($savedPhotoFile);
+        }
+    }
+    error_log("Face service enrollment error: " . $error->getMessage());
+    faceEnrollmentRespond($error->getStatusCode(), false, $error->getMessage());
 } catch (Throwable $error) {
     if (is_string($savedPhotoPath)) {
         $savedPhotoFile = dirname(__DIR__) . DIRECTORY_SEPARATOR . "Uploads" . DIRECTORY_SEPARATOR

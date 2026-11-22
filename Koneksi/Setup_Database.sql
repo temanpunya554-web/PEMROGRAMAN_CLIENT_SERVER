@@ -1,8 +1,8 @@
-CREATE DATABASE IF NOT EXISTS `arb.wcite`
+CREATE DATABASE IF NOT EXISTS `siabak`
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_general_ci;
 
-USE `arb.wcite`;
+USE `siabak`;
 
 DROP TABLE IF EXISTS `community_announcements`;
 DROP TABLE IF EXISTS `community_events`;
@@ -77,7 +77,12 @@ INSERT IGNORE INTO `class_rooms` (`RoomName`, `RoomStatus`) VALUES
   ('Lab Komputer 1', 'open'),
   ('Lab Komputer 2', 'open'),
   ('Lab Unprotek', 'open'),
-  ('Lab Teknik Kendali', 'open');
+  ('Lab Teknik Kendali', 'open'),
+  ('RK 2.11', 'open'),
+  ('Lab Kendali', 'open'),
+  ('UKS Lama', 'open'),
+  ('Lab Unit Produksi', 'open'),
+  ('Lab Elektronika', 'open');
 
 CREATE TABLE IF NOT EXISTS `class_attendance` (
   `Id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -93,6 +98,8 @@ CREATE TABLE IF NOT EXISTS `class_attendance` (
 CREATE TABLE IF NOT EXISTS `mahasiswa_face_enrollments` (
   `Username` VARCHAR(50) NOT NULL,
   `PhotoPath` VARCHAR(255) NOT NULL,
+  `FaceDescriptor` LONGTEXT NULL,
+  `ModelVersion` VARCHAR(100) NULL,
   `CreatedAt` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `UpdatedAt` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`Username`)
@@ -119,6 +126,6 @@ INSERT IGNORE INTO `class_schedules`
   ('Rabu', 'Sirkuit dan Elektronika', '13:00:00', '15:30:00', 'Lab Unit Produksi', 'Teori'),
   ('Rabu', 'Desain Digital dan Logika', '15:30:00', '17:10:00', 'Lab Kendali', 'Teori'),
   ('Kamis', 'Pemrograman Client/Server', '13:00:00', '15:30:00', 'Lab Komputer 1', 'Teori'),
-  ('Sabtu', 'Praktikum Sirkuit dan Elektronika', NULL, NULL, 'Belum ditentukan', 'Praktikum'),
-  ('Sabtu', 'Praktikum Pemrograman Client/Server', NULL, NULL, 'Belum ditentukan', 'Praktikum'),
-  ('Sabtu', 'Praktikum Desain Digital dan Logika', NULL, NULL, 'Belum ditentukan', 'Praktikum');
+  ('Sabtu', 'Praktikum Sirkuit dan Elektronika', '13:00:00', '13:50:00', 'Lab Elektronika', 'Praktikum'),
+  ('Sabtu', 'Praktikum Pemrograman Client/Server', '13:51:00', '14:40:00', 'Lab Komputer 1', 'Praktikum'),
+  ('Sabtu', 'Praktikum Desain Digital dan Logika', '14:41:00', '15:31:00', 'Lab Komputer 1', 'Praktikum');

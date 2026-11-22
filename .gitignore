@@ -1,1 +1,8 @@
 ﻿*catatan belajar HTML CSS saya*
+FaceService/.service-token
+FaceService/.venv/
+FaceService/__pycache__/
+FaceService/install-autostart.ps1
+FaceService/register-on-demand-task.ps1
+FaceService/remove-autostart.ps1
+Uploads/Mahasiswa/FaceEnrollment/*.jpg

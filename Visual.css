@@ -631,7 +631,6 @@ body {
   min-height: 330px;
   display: block;
   object-fit: cover;
-  transform: scaleX(-1);
 }
 
 .face-preview span {

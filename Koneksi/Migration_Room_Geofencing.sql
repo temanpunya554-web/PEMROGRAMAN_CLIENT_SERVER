@@ -1,4 +1,4 @@
-USE `arb.wcite`;
+USE `siabak`;
 
 -- Menambahkan kolom geofencing pada tabel class_rooms
 -- Koordinat default kampus (-6.2000000, 106.8166667) dengan radius 100 meter

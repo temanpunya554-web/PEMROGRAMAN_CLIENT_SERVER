@@ -1,4 +1,4 @@
-USE `arb.wcite`;
+USE `siabak`;
 
 -- Menambahkan kolom lengkap pada tabel dosen_profiles agar setara dengan profil mahasiswa
 -- Aman dijalankan berulang kali.

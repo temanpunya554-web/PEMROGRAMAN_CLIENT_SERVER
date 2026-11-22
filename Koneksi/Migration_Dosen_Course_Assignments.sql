@@ -1,6 +1,6 @@
--- Jalankan sekali setelah memilih database arb.wcite.
+-- Jalankan sekali setelah memilih database siabak.
 -- Setelah tabel dibuat, admin perlu mengisi penugasan dosen untuk setiap jadwal.
-USE `arb.wcite`;
+USE `siabak`;
 
 CREATE TABLE IF NOT EXISTS `dosen_course_assignments` (
   `Id` INT UNSIGNED NOT NULL AUTO_INCREMENT,

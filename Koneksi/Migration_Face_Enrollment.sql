@@ -1,8 +1,10 @@
-USE `arb.wcite`;
+USE `siabak`;
 
 CREATE TABLE IF NOT EXISTS `mahasiswa_face_enrollments` (
   `Username` VARCHAR(50) NOT NULL,
   `PhotoPath` VARCHAR(255) NOT NULL,
+  `FaceDescriptor` LONGTEXT NULL,
+  `ModelVersion` VARCHAR(100) NULL,
   `CreatedAt` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `UpdatedAt` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`Username`)

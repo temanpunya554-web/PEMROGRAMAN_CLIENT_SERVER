@@ -1,4 +1,4 @@
-USE `arb.wcite`;
+USE `siabak`;
 
 -- Menambahkan jenis kelamin pada profil Dosen agar bisa dihitung persentasenya di dashboard admin.
 -- Aman dijalankan berulang kali.

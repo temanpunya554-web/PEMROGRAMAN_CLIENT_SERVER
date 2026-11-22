@@ -1,5 +1,5 @@
--- Jalankan sekali setelah memilih database arb.wcite
-USE `arb.wcite`;
+-- Jalankan sekali setelah memilih database siabak
+USE `siabak`;
 
 CREATE TABLE IF NOT EXISTS `course_attendance` (
   `Id` INT UNSIGNED NOT NULL AUTO_INCREMENT,

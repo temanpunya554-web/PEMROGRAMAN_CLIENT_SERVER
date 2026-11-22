@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . "/Student_Auth.php";
+require_once __DIR__ . "/../Koneksi/Face_Service_Client.php";
 $activeStudentPage = "attendance";
 require __DIR__ . "/Student_Header.php";
 ?>
@@ -66,20 +67,11 @@ require __DIR__ . "/Student_Header.php";
     </div>
 
     <p class="community-privacy-note">
-        <strong>Ketentuan Absensi:</strong> Mahasiswa harus berada di dalam radius geofencing ruangan (50–100 meter). Pencocokan wajah membandingkan kamera dengan ciri wajah akun yang terdaftar. Sistem meminta gerakan kepala sederhana sebagai pemeriksaan keaktifan; ini belum merupakan perlindungan anti-spoof tingkat produksi. Sidik jari masih simulasi karena perangkat belum tersedia.
+        <strong>Ketentuan Absensi:</strong> Mahasiswa harus berada di dalam radius geofencing ruangan (50–100 meter). Kamera mengirim bingkai ke layanan wajah lokal di komputer XAMPP untuk pemeriksaan anti-spoof dan pencocokan dengan akun terdaftar. Pemeriksaan liveness tetap probabilistik dan tidak menjamin penolakan semua bentuk spoofing. Sidik jari masih simulasi karena perangkat belum tersedia.
     </p>
 </section>
 
-<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js"></script>
 <script>
-    const FACE_MODEL_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model";
-    let faceModelsReady = false;
-    async function loadFaceModels() {
-        if (faceModelsReady) return;
-        if (!window.faceapi) throw new Error("Pustaka pengenalan wajah gagal dimuat. Periksa koneksi internet.");
-        await Promise.all([faceapi.nets.ssdMobilenetv1.loadFromUri(FACE_MODEL_URL), faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL_URL), faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL)]);
-        faceModelsReady = true;
-    }
     const roomCsrfToken = <?= json_encode($studentCsrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     const roomSelect = document.getElementById("room-select");
     const scheduleSelect = document.getElementById("schedule-select");
@@ -107,6 +99,46 @@ require __DIR__ . "/Student_Header.php";
     let faceVerified = false;
     let cameraStream = null;
     let faceProof = null;
+
+    function delay(milliseconds) {
+        return new Promise((resolve) => setTimeout(resolve, milliseconds));
+    }
+
+    async function requestLivenessChallenge() {
+        const form = new FormData();
+        form.set("csrf_token", roomCsrfToken);
+        form.set("purpose", "attendance");
+        const response = await fetch("../Koneksi/Face_Challenge.php", {
+            method: "POST",
+            body: form,
+            headers: { Accept: "application/json" }
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || "Tantangan kamera gagal disiapkan.");
+        return result;
+    }
+
+    async function captureFaceFrame() {
+        if (faceVideo.videoWidth < 320 || faceVideo.videoHeight < 320) {
+            throw new Error("Tunggu sampai pratinjau kamera siap, lalu coba lagi.");
+        }
+        const scale = Math.min(1, 640 / faceVideo.videoWidth);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(faceVideo.videoWidth * scale);
+        canvas.height = Math.round(faceVideo.videoHeight * scale);
+        const context = canvas.getContext("2d");
+        if (!context) throw new Error("Bingkai kamera tidak dapat diproses oleh browser ini.");
+        context.drawImage(faceVideo, 0, 0, canvas.width, canvas.height);
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.75));
+        if (!blob) throw new Error("Bingkai kamera tidak dapat diproses. Silakan coba lagi.");
+        const dataUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error("Bingkai kamera tidak dapat dibaca."));
+            reader.readAsDataURL(blob);
+        });
+        return String(dataUrl).split(",")[1];
+    }
 
     // --- FITUR UX: DETEKSI KONEKSI ONLINE/OFFLINE ---
     function updateNetworkStatus() {
@@ -359,7 +391,7 @@ require __DIR__ . "/Student_Header.php";
         verificationStatus.textContent = "Tahap sidik jari simulasi selesai. Lanjutkan ke Tahap 3: Aktifkan kamera.";
     });
 
-    // --- TAHAP 3: PENCOCOKAN WAJAH + TANTANGAN GERAK SEDERHANA ---
+    // --- TAHAP 3: PENCOCOKAN WAJAH DAN PEMERIKSAAN KEAKTIFAN ---
     faceButton.addEventListener("click", async () => {
         if (!fingerprintVerified) {
             verificationStatus.textContent = "Selesaikan verifikasi sidik jari terlebih dahulu.";
@@ -373,35 +405,44 @@ require __DIR__ . "/Student_Header.php";
         faceVerified = false;
         faceProof = null;
         try {
-            await loadFaceModels();
+            cameraStatus.textContent = "Menyiapkan layanan verifikasi lokal...";
+            verificationStatus.textContent = "Menyalakan layanan lokal untuk pemeriksaan wajah...";
+            const challengeResult = await requestLivenessChallenge();
             if (!cameraStream) {
-                cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+                    audio: false
+                });
                 faceVideo.srcObject = cameraStream;
-                await new Promise(resolve => faceVideo.onloadedmetadata = resolve);
+                await new Promise((resolve, reject) => {
+                    faceVideo.onloadedmetadata = resolve;
+                    faceVideo.onerror = () => reject(new Error("Pratinjau kamera tidak dapat dimulai."));
+                });
                 await faceVideo.play();
             }
-            cameraStatus.textContent = "Kamera aktif. Ikuti instruksi gerakan kepala.";
-            verificationStatus.textContent = "Lihat kamera, lalu gerakkan kepala sedikit ke kiri dan ke kanan selama pemeriksaan.";
-            const offsets = [];
-            let finalDetection = null;
-            for (let i = 0; i < 5; i++) {
-                await new Promise(resolve => setTimeout(resolve, 450));
-                const detection = await faceapi.detectSingleFace(faceVideo, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.6 })).withFaceLandmarks().withFaceDescriptor();
-                if (!detection) throw new Error("Wajah tidak terdeteksi. Pastikan wajah terlihat jelas dan pencahayaan cukup.");
-                const box = detection.detection.box;
-                const nose = detection.landmarks.getNose();
-                const leftEye = detection.landmarks.getLeftEye();
-                const rightEye = detection.landmarks.getRightEye();
-                const noseX = nose.reduce((sum, point) => sum + point.x, 0) / nose.length;
-                const eyesX = (leftEye.reduce((sum, point) => sum + point.x, 0) / leftEye.length + rightEye.reduce((sum, point) => sum + point.x, 0) / rightEye.length) / 2;
-                offsets.push((noseX - eyesX) / Math.max(box.width, 1));
-                finalDetection = detection;
+            cameraStatus.textContent = "Kamera aktif. Ikuti arah gerakan yang diminta.";
+            const movementText = challengeResult.challenge === "left-right" ? "ke kiri, lalu ke kanan" : "ke kanan, lalu ke kiri";
+            verificationStatus.textContent = "Lihat kamera dan gerakkan kepala perlahan " + movementText + ".";
+
+            const firstFrames = [];
+            for (let index = 0; index < 3; index += 1) {
+                firstFrames.push(await captureFaceFrame());
+                await delay(350);
             }
-            const movement = Math.max(...offsets) - Math.min(...offsets);
-            if (movement < 0.018) throw new Error("Gerakan belum terdeteksi. Ulangi dan gerakkan kepala sedikit ke kiri lalu kanan.");
+            await delay(1800);
+            const secondFrames = [];
+            for (let index = 0; index < 3; index += 1) {
+                secondFrames.push(await captureFaceFrame());
+                await delay(350);
+            }
+            stopCamera();
+
             const form = new FormData();
             form.set("csrf_token", roomCsrfToken);
-            form.set("descriptor", JSON.stringify(Array.from(finalDetection.descriptor)));
+            form.set("challenge", challengeResult.challenge);
+            form.set("challenge_nonce", challengeResult.nonce);
+            form.set("first_frames", JSON.stringify(firstFrames));
+            form.set("second_frames", JSON.stringify(secondFrames));
             const verifyResponse = await fetch("../Koneksi/Face_Verify.php", { method: "POST", body: form, headers: { Accept: "application/json" } });
             const verifyResult = await verifyResponse.json();
             if (!verifyResponse.ok || !verifyResult.success) throw new Error(verifyResult.message || "Wajah tidak cocok.");
@@ -409,8 +450,9 @@ require __DIR__ . "/Student_Header.php";
             faceVerified = true;
             enterRoomButton.disabled = false;
             cameraStatus.textContent = "Wajah cocok dengan akun terdaftar ✓";
-            verificationStatus.textContent = verifyResult.message + " Pemeriksaan gerakan sederhana berhasil.";
+            verificationStatus.textContent = verifyResult.message;
         } catch (error) {
+            stopCamera();
             faceVerified = false;
             faceProof = null;
             cameraStatus.textContent = "Verifikasi wajah belum berhasil";
@@ -419,6 +461,8 @@ require __DIR__ . "/Student_Header.php";
             faceButton.disabled = false;
         }
     });
+
+    window.addEventListener("beforeunload", stopCamera);
 
     // --- TAHAP 4: CATAT ABSENSI ---
     enterRoomButton.addEventListener("click", async () => {

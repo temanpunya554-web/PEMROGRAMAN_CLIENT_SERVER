@@ -1,4 +1,4 @@
-USE `arb.wcite`;
+USE `siabak`;
 
 CREATE TABLE IF NOT EXISTS `mahasiswa_profiles` (
   `Username` VARCHAR(50) NOT NULL,
