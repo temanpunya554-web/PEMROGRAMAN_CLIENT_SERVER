@@ -1,7 +1,7 @@
 <?php
 $host = "ym3jks.h.filess.io";
 $dbUsername = "SistemAbsensi_Akademik_eventplan";
-$dbPassword = "8fcp5yHLcxgExWc8ddeM6znVTA3jFXNbdVcpRTcr7TY4";
+$dbPassword = "Razya11223";
 $database = "SistemAbsensi_Akademik_eventplan";
 $port = "3306";
 
