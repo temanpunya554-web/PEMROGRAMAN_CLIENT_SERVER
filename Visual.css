@@ -12,7 +12,7 @@ body {
 .navbar {
   width: 100%;
   margin: 0;
-  padding: 25px 24px;
+  padding: 18px 24px;
   box-sizing: border-box;
   display: flex;
   justify-content: space-between;
@@ -32,8 +32,8 @@ body {
 
 .logo-image {
   display: block;
-  width: 78px;
-  height: 78px;
+  width: 96px;
+  height: 96px;
   object-fit: contain;
 }
 
@@ -477,6 +477,15 @@ body {
   color: #b91c2d;
   font-size: 42px;
   font-weight: 800;
+  overflow: hidden;
+}
+
+.service-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
 }
 
 .service-card strong {
@@ -1213,6 +1222,63 @@ body {
   box-shadow: 0 8px 24px rgba(34, 58, 111, 0.05);
 }
 
+.biometric-enrollment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.biometric-enrollment-card h3 {
+  margin-top: 0;
+  color: #182053;
+}
+
+.face-enrollment-preview {
+  position: relative;
+  display: grid;
+  min-height: 260px;
+  margin: 18px 0;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid #d9e4f2;
+  border-radius: 12px;
+  background: #101828;
+  color: #ffffff;
+}
+
+.face-enrollment-preview video,
+.face-enrollment-preview img {
+  width: 100%;
+  max-height: 420px;
+  object-fit: cover;
+}
+
+.biometric-actions {
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.biometric-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 18px;
+  color: #435071;
+  line-height: 1.5;
+}
+
+.biometric-consent input {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+}
+
+.biometric-enrollment-card .community-privacy-note {
+  margin: 14px 0 0;
+}
+
 .community-card-date {
   display: block;
   color: #176b91;
@@ -1430,6 +1496,288 @@ body {
   opacity: 0.6;
 }
 
+.student-app-header-inner {
+  display: flex;
+  width: min(100% - 40px, 1200px);
+  min-height: 84px;
+  margin: 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.student-app-header .logo {
+  gap: 10px;
+  font-size: 25px;
+}
+
+.student-app-header .logo-image {
+  width: 64px;
+  height: 64px;
+}
+
+.student-account-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.student-account-actions form {
+  margin: 0;
+}
+
+.student-app-layout {
+  display: grid;
+  width: min(100% - 40px, 1200px);
+  min-height: calc(100vh - 170px);
+  margin: 0 auto;
+  padding: 34px 0 54px;
+  box-sizing: border-box;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 28px;
+}
+
+.student-app-nav {
+  display: flex;
+  align-self: start;
+  position: sticky;
+  top: 20px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #d9e4f2;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(34, 58, 111, 0.05);
+}
+
+.student-app-nav a {
+  padding: 12px 14px;
+  border-radius: 9px;
+  color: #435071;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+.student-app-nav a:hover,
+.student-app-nav a[aria-current="page"] {
+  background: #e5f5ff;
+  color: #123b70;
+}
+
+.student-app-content {
+  min-width: 0;
+}
+
+.student-page-heading {
+  margin: 6px 0 28px;
+}
+
+.student-page-heading h1 {
+  margin: 8px 0;
+  color: #182053;
+  font-size: 34px;
+}
+
+.student-page-heading > p:last-child {
+  margin-bottom: 0;
+  color: #435071;
+  line-height: 1.65;
+}
+
+.student-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.student-summary-card,
+.student-content-panel {
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid #d9e4f2;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(34, 58, 111, 0.05);
+}
+
+.student-summary-card {
+  display: grid;
+  gap: 10px;
+}
+
+.student-summary-card > span {
+  color: #60708f;
+  font-size: 14px;
+}
+
+.student-summary-card strong {
+  color: #182053;
+  font-size: 24px;
+}
+
+.student-summary-card a,
+.student-panel-heading a,
+.student-clear-filter {
+  color: #176b91;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.student-content-panel {
+  margin-bottom: 20px;
+}
+
+.student-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.student-panel-heading .home-eyebrow {
+  margin-bottom: 8px;
+}
+
+.student-panel-heading h2 {
+  margin: 0;
+  color: #182053;
+  font-size: 22px;
+}
+
+.student-quick-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.student-quick-links a {
+  padding: 12px 14px;
+  border: 1px solid #d9e4f2;
+  border-radius: 9px;
+  color: #176b91;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+.student-profile-layout {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 28px;
+}
+
+.student-profile-photo {
+  text-align: center;
+}
+
+.student-profile-photo img,
+.student-profile-photo-placeholder {
+  width: 150px;
+  height: 150px;
+  margin: 0 auto 14px;
+  border: 1px solid #d9e4f2;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.student-profile-photo-placeholder {
+  display: grid;
+  place-items: center;
+  background: #e5f5ff;
+  color: #176b91;
+  font-size: 48px;
+  font-weight: bold;
+}
+
+.student-profile-photo p {
+  margin: 0 0 6px;
+  color: #182053;
+  font-weight: bold;
+}
+
+.student-profile-photo span {
+  color: #60708f;
+  font-size: 13px;
+}
+
+.student-profile-form {
+  display: grid;
+  gap: 14px;
+}
+
+.student-profile-form label,
+.student-history-filters label {
+  display: grid;
+  gap: 7px;
+  color: #223a6f;
+  font-weight: bold;
+}
+
+.student-profile-form input,
+.student-profile-form select,
+.student-history-filters input,
+.student-history-filters select {
+  width: 100%;
+  min-height: 42px;
+  box-sizing: border-box;
+  padding: 9px 11px;
+  border: 1px solid #b8c2df;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #182053;
+  font: inherit;
+}
+
+.student-profile-form input[readonly] {
+  background: #edf0f7;
+}
+
+.student-profile-readonly {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.student-profile-form .home-button {
+  justify-self: start;
+  border: 0;
+  font: inherit;
+}
+
+.student-biometric-grid {
+  align-items: start;
+}
+
+.student-enrollment-status {
+  display: inline-block;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: #fff3d4;
+  color: #7a4f00;
+  font-weight: bold;
+}
+
+.student-history-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto auto;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.student-history-filters .home-button {
+  border: 0;
+  font: inherit;
+  white-space: nowrap;
+}
+
+.student-history-count {
+  color: #60708f;
+  font-size: 14px;
+}
+
 @media (max-width: 768px) {
   .service-selection-box {
     width: min(100vw - 20px, 1120px);
@@ -1480,6 +1828,7 @@ body {
   }
 
   .community-card-grid,
+  .biometric-enrollment-grid,
   .community-admin-forms,
   .community-admin-lists,
   .community-member-list {
@@ -1527,8 +1876,8 @@ body {
   }
 
   .logo-image {
-    width: 52px;
-    height: 52px;
+    width: 72px;
+    height: 72px;
   }
 
   .hero-text h1 {
@@ -1584,4 +1933,398 @@ body {
     flex-direction: column;
     gap: 8px;
   }
+
+  .student-app-header-inner {
+    width: calc(100% - 24px);
+    min-height: 70px;
+    gap: 8px;
+  }
+
+  .student-app-header .logo {
+    gap: 6px;
+    font-size: 17px;
+  }
+
+  .student-app-header .logo-image {
+    width: 48px;
+    height: 48px;
+  }
+
+  .student-account-actions {
+    gap: 8px;
+  }
+
+  .student-account-actions .session-user {
+    display: none;
+  }
+
+  .student-account-actions .nav-button {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .student-app-layout {
+    width: calc(100% - 24px);
+    min-height: auto;
+    padding: 22px 0 90px;
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .student-app-nav {
+    position: fixed;
+    z-index: 20;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 2px;
+    padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
+    border: 0;
+    border-top: 1px solid #d9e4f2;
+    border-radius: 0;
+    background: #ffffff;
+    box-shadow: 0 -6px 20px rgba(34, 58, 111, 0.1);
+  }
+
+  .student-app-nav a {
+    padding: 10px 2px;
+    text-align: center;
+    font-size: 12px;
+  }
+
+  .student-page-heading h1 {
+    font-size: 29px;
+  }
+
+  .student-summary-grid,
+  .biometric-enrollment-grid,
+  .student-profile-layout,
+  .student-history-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .student-profile-readonly {
+    grid-template-columns: 1fr;
+  }
 }
+
+/* Menu dosen: mengikuti pola menu mahasiswa */
+.dosen-history-filters {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.dosen-history-filters .home-button {
+  text-decoration: none;
+}
+
+@media (max-width: 768px) {
+  .dosen-app-nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .dosen-history-filters {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Dashboard admin: persentase dan kelola data akun */
+.admin-percent-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 26px 32px;
+}
+
+.admin-percent-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.admin-percent-block h3 {
+  margin: 0 0 16px;
+  color: #223a6f;
+  font-size: 16px;
+}
+
+.admin-percent-list {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-percent-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+  color: #35436d;
+  font-size: 14px;
+}
+
+.admin-percent-head strong {
+  color: #182a53;
+  white-space: nowrap;
+}
+
+.admin-percent-track {
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #edf2f8;
+}
+
+.admin-percent-fill {
+  height: 100%;
+  min-width: 0;
+  border-radius: 999px;
+  background: #223a6f;
+  transition: width 300ms ease;
+}
+
+.admin-percent-fill.is-male { background: #dc3545; }
+.admin-percent-fill.is-female { background: #2874de; }
+.admin-percent-fill.is-other { background: #e879c9; }
+.admin-percent-fill.is-empty { background: #a7b2c8; }
+.admin-percent-fill.is-good { background: #1f9d63; }
+.admin-percent-fill.is-warn { background: #e0912f; }
+
+.admin-notice {
+  margin: 0 0 18px;
+  padding: 10px 14px;
+  border: 1px solid #f1d9a6;
+  border-radius: 8px;
+  background: #fff7e3;
+  color: #6b4a08;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.admin-notice[hidden],
+.admin-edit-dialog [hidden] {
+  display: none !important;
+}
+
+.admin-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.admin-tabs {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid #b8c2df;
+  border-radius: 8px;
+}
+
+.admin-tab {
+  padding: 9px 20px;
+  border: 0;
+  background: #ffffff;
+  color: #223a6f;
+  font: inherit;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.admin-tab + .admin-tab {
+  border-left: 1px solid #b8c2df;
+}
+
+.admin-tab.is-active {
+  background: #223a6f;
+  color: #ffffff;
+}
+
+.admin-search {
+  min-width: 260px;
+  min-height: 40px;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border: 1px solid #b8c2df;
+  border-radius: 8px;
+  font: inherit;
+}
+
+.admin-status {
+  min-height: 20px;
+  margin: 0 0 10px;
+  color: #60708f;
+  font-size: 14px;
+}
+
+.admin-edit-button {
+  padding: 6px 14px;
+  border: 1px solid #223a6f;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #223a6f;
+  font: inherit;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.admin-edit-button:hover {
+  background: #223a6f;
+  color: #ffffff;
+}
+
+.admin-edit-dialog {
+  width: min(680px, calc(100% - 32px));
+  max-height: calc(100vh - 48px);
+  padding: 26px;
+  border: 0;
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgba(24, 32, 83, 0.35);
+}
+
+.admin-edit-dialog::backdrop {
+  background: rgba(24, 32, 83, 0.45);
+}
+
+.admin-edit-dialog h2 {
+  margin: 0;
+  color: #182053;
+  font-size: 22px;
+}
+
+.admin-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.admin-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.admin-form-actions .room-action {
+  width: auto;
+}
+
+@media (max-width: 900px) {
+  .admin-percent-grid,
+  .admin-percent-grid-3,
+  .admin-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-search {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+/* =========================================================
+   GEOFENCING, OFFLINE STATUS & NOTIFIKASI TAMBAHAN
+   ========================================================= */
+
+.network-status-banner {
+  padding: 10px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.network-status-banner.offline {
+  background: #fef5d1;
+  color: #7d5a00;
+  border: 1px solid #f6e08c;
+}
+
+.network-status-banner.online {
+  background: #d4efdf;
+  color: #145a32;
+  border: 1px solid #a9dfbf;
+}
+
+.gps-info-box {
+  margin: 12px 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  display: grid;
+  gap: 6px;
+  font-size: 13.5px;
+}
+
+.gps-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.gps-badge-in-range {
+  background: #d4efdf;
+  color: #145a32;
+}
+
+.gps-badge-out-range {
+  background: #fadbd8;
+  color: #78281f;
+}
+
+.gps-badge-pending {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.gps-simulation-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.notif-banner-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, #eef5fc, #f4f8fc);
+  border: 1px solid #c7d8eb;
+  border-radius: 10px;
+  margin-bottom: 18px;
+}
+
+.notif-banner-card p {
+  margin: 0;
+  color: #1e3a8a;
+  font-size: 14px;
+}
+
+.notif-banner-card button {
+  padding: 7px 14px;
+  border-radius: 6px;
+  border: 1px solid #1e3a8a;
+  background: #1e3a8a;
+  color: #ffffff;
+  font-weight: bold;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.notif-banner-card button:hover {
+  background: #162c6d;
+}
+

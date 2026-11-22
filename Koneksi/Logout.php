@@ -31,7 +31,7 @@ if (!session_destroy()) {
 
 $acceptHeader = $_SERVER["HTTP_ACCEPT"] ?? "";
 if (strpos($acceptHeader, "application/json") === false) {
-    header("Location: ../Interface.html?login=1", true, 303);
+    header("Location: ../SIABAK.html?login=1", true, 303);
     exit;
 }
 

@@ -1,269 +1,234 @@
 <?php
-session_start();
-if (!isset($_SESSION["username"]) || !is_string($_SESSION["username"])) {
-	header("Location: ../Interface.html?login=1");
-	exit;
-}
-if (($_SESSION["role"] ?? "") === "dosen") {
-	header("Location: Dosen.php");
-	exit;
-}
-if (($_SESSION["role"] ?? "") === "admin") {
-	header("Location: Admin.php");
-	exit;
-}
-mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
-try {
-	require_once __DIR__ . "/../Koneksi/Koneksi.php";
-	mysqli_set_charset($conn, "utf8mb4");
-	$databaseRole = "";
-	$roleStatement = mysqli_prepare($conn, "SELECT `Role` FROM `login` WHERE `Username` = ? LIMIT 1");
-	mysqli_stmt_bind_param($roleStatement, "s", $_SESSION["username"]);
-	mysqli_stmt_execute($roleStatement);
-	mysqli_stmt_bind_result($roleStatement, $databaseRole);
-	$roleFound = mysqli_stmt_fetch($roleStatement);
-	mysqli_stmt_close($roleStatement);
-	$normalizedDatabaseRole = $databaseRole === "dosen"
-		? "dosen"
-		: ($databaseRole === "admin" ? "admin" : "mahasiswa");
-	if (!$roleFound) {
-		header("Location: ../Interface.html?login=1");
-		exit;
-	}
-	if ($normalizedDatabaseRole === "dosen") {
-		header("Location: Dosen.php");
-		exit;
-	}
-	if ($normalizedDatabaseRole === "admin") {
-		header("Location: Admin.php");
-		exit;
-	}
-	$_SESSION["role"] = "mahasiswa";
-} catch (Throwable $error) {
-	error_log("Student role verification error: " . $error->getMessage());
-	http_response_code(500);
-	exit("Peran mahasiswa tidak dapat diverifikasi.");
-}
+require_once __DIR__ . "/Student_Auth.php";
+$activeStudentPage = "home";
 
-if (!isset($_SESSION["csrf_token"]) || !is_string($_SESSION["csrf_token"])) {
-	$_SESSION["csrf_token"] = bin2hex(random_bytes(32));
-}
-$csrfToken = $_SESSION["csrf_token"];
+$dayNames = [1 => "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
+$todayName = $dayNames[(int) date("N")];
+$scheduleStatement = mysqli_prepare(
+    $conn,
+    "SELECT `CourseName`, `StartTime`, `EndTime`, `RoomName`, `ScheduleType`
+     FROM `class_schedules` WHERE `DayName` = ?
+     ORDER BY `StartTime` IS NULL, `StartTime`, `Id`"
+);
+mysqli_stmt_bind_param($scheduleStatement, "s", $todayName);
+mysqli_stmt_execute($scheduleStatement);
+$scheduleResult = mysqli_stmt_get_result($scheduleStatement);
+$todaySchedule = mysqli_fetch_all($scheduleResult, MYSQLI_ASSOC);
+mysqli_stmt_close($scheduleStatement);
+
+$attendanceStatement = mysqli_prepare(
+    $conn,
+    "SELECT COUNT(*) FROM `class_attendance`
+     WHERE `Username` = ? AND DATE(`VerifiedAt`) = CURDATE()"
+);
+mysqli_stmt_bind_param($attendanceStatement, "s", $studentUsername);
+mysqli_stmt_execute($attendanceStatement);
+mysqli_stmt_bind_result($attendanceStatement, $todayAttendanceCount);
+mysqli_stmt_fetch($attendanceStatement);
+mysqli_stmt_close($attendanceStatement);
+
+$faceStatement = mysqli_prepare(
+    $conn,
+    "SELECT `UpdatedAt` FROM `mahasiswa_face_enrollments` WHERE `Username` = ? LIMIT 1"
+);
+mysqli_stmt_bind_param($faceStatement, "s", $studentUsername);
+mysqli_stmt_execute($faceStatement);
+mysqli_stmt_bind_result($faceStatement, $faceUpdatedAt);
+$faceEnrolled = mysqli_stmt_fetch($faceStatement);
+mysqli_stmt_close($faceStatement);
+
+// Rekap kehadiran per mata kuliah (berdasarkan pencatatan dosen).
+$courseAttendanceStatement = mysqli_prepare(
+    $conn,
+    "SELECT schedules.`Id` AS ScheduleId, schedules.`CourseName`,
+            COUNT(records.`Id`) AS TotalPertemuan,
+            SUM(CASE WHEN records.`Status` = 'Hadir' THEN 1 ELSE 0 END) AS TotalHadir,
+            SUM(CASE WHEN records.`Status` IN ('Izin','Sakit','Alpa') THEN 1 ELSE 0 END) AS TotalTidakHadir
+     FROM `class_schedules` AS schedules
+     LEFT JOIN `course_attendance` AS records
+       ON records.`ScheduleId` = schedules.`Id` AND records.`Username` = ?
+     GROUP BY schedules.`Id`, schedules.`CourseName`
+     ORDER BY schedules.`CourseName`"
+);
+mysqli_stmt_bind_param($courseAttendanceStatement, "s", $studentUsername);
+mysqli_stmt_execute($courseAttendanceStatement);
+$courseAttendanceResult = mysqli_stmt_get_result($courseAttendanceStatement);
+$courseAttendanceRows = mysqli_fetch_all($courseAttendanceResult, MYSQLI_ASSOC);
+mysqli_stmt_close($courseAttendanceStatement);
+
+require __DIR__ . "/Student_Header.php";
 ?>
-<!DOCTYPE html>
-<html lang="id">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<meta name="theme-color" content="#223a6f" />
-		<title>Dashboard Mahasiswa | Absensi Kampus</title>
-		<link rel="stylesheet" href="../Visual.css?v=20261120-absensi" />
-	</head>
+<div id="network-status-banner" class="network-status-banner" hidden></div>
 
-	<body class="home-page">
-		<header class="header">
-			<nav class="navbar" aria-label="Navigasi utama">
-				<a class="logo" href="#beranda" aria-label="Beranda Mahasiswa">
-					<img src="../LogoArb.png" alt="" class="logo-image" />
-					<span>Absensi Kampus</span>
-				</a>
+<div class="notif-banner-card" id="notif-banner">
+    <div>
+        <p><strong>🔔 Pengingat Jadwal & Notifikasi Absensi</strong></p>
+        <span style="font-size: 13px; color: #475569;">Dapatkan pengingat di perangkat saat jadwal kelas dimulai dan ruangan kelas dibuka.</span>
+    </div>
+    <button type="button" id="enable-notif-btn">Aktifkan Notifikasi</button>
+</div>
 
-				<ul class="nav-menu">
-					<li><a href="#beranda" aria-current="page">Beranda Mahasiswa</a></li>
-					<li><a href="#verifikasi-ruangan">Verifikasi Kehadiran</a></li>
-				</ul>
-				<form class="nav-actions" action="../Koneksi/Logout.php" method="post">
-					<span class="session-user">Mahasiswa: <?= htmlspecialchars($_SESSION["username"], ENT_QUOTES, "UTF-8") ?></span>
-					<button class="nav-button nav-button-secondary" type="submit">Keluar / Ganti akun</button>
-				</form>
-			</nav>
-		</header>
+<section class="student-page-heading">
+    <p class="home-eyebrow">DASHBOARD MAHASISWA</p>
+    <h1>Selamat datang, <?= studentEscape($studentDisplayName) ?>.</h1>
+    <p>Informasi singkat akun dan kegiatan akademikmu hari ini.</p>
+</section>
 
-		<main>
-			<section class="home-hero" id="beranda">
-				<div class="home-container home-hero-inner">
-					<div class="home-hero-copy">
-						<p class="home-eyebrow">DASHBOARD MAHASISWA</p>
-						<h1>Selamat datang, <?= htmlspecialchars($_SESSION["username"], ENT_QUOTES, "UTF-8") ?>.</h1>
-						<p class="home-lead">
-							Pilih ruangan, lakukan verifikasi sidik jari dan pengenalan wajah,
-							lalu catat kehadiran Anda jika ruangan terbuka.
-						</p>
-						<div class="home-actions">
-							<a class="home-button" href="#verifikasi-ruangan">Mulai absensi</a>
-						</div>
-					</div>
+<section class="student-summary-grid" aria-label="Ringkasan mahasiswa">
+    <article class="student-summary-card">
+        <span>Hari ini</span>
+        <strong><?= studentEscape($todayName) ?></strong>
+        <a href="Absensi.php">Buka halaman absensi</a>
+    </article>
+    <article class="student-summary-card">
+        <span>Absensi hari ini</span>
+        <strong><?= (int) $todayAttendanceCount ?></strong>
+        <a href="Riwayat.php">Lihat riwayat</a>
+    </article>
+    <article class="student-summary-card">
+        <span>Pendaftaran wajah</span>
+        <strong><?= $faceEnrolled ? "Terdaftar" : "Belum terdaftar" ?></strong>
+        <a href="Biometrik.php">Kelola biometrik</a>
+    </article>
+</section>
 
-					<aside class="home-hero-aside" aria-label="Tahapan absensi">
-						<p class="home-aside-heading">ABSENSI</p>
-							<a href="#verifikasi-ruangan"><span>01</span> Pilih ruangan</a>
-							<a href="#verifikasi-ruangan"><span>02</span> Sidik jari</a>
-							<a href="#verifikasi-ruangan"><span>03</span> Pengenalan wajah</a>
-					</aside>
-				</div>
-			</section>
+<section class="student-content-panel">
+    <div class="student-panel-heading">
+        <div>
+            <p class="home-eyebrow">REKAP AKADEMIK</p>
+            <h2>Persentase kehadiran per mata kuliah</h2>
+        </div>
+        <a href="Riwayat.php">Riwayat absensi</a>
+    </div>
+    <?php if (!$courseAttendanceRows): ?>
+        <p class="admin-empty">Belum ada mata kuliah yang terdaftar.</p>
+    <?php else: ?>
+        <div class="attendance-table-wrap">
+            <table class="attendance-table">
+                <thead><tr><th>Mata Kuliah</th><th>Pertemuan tercatat</th><th>Hadir</th><th>Tidak hadir</th><th>Persentase</th></tr></thead>
+                <tbody>
+                <?php foreach ($courseAttendanceRows as $course): ?>
+                    <?php $total = (int) $course["TotalPertemuan"]; $present = (int) $course["TotalHadir"]; $percentage = $total > 0 ? round(($present / $total) * 100, 1) : 0; ?>
+                    <tr>
+                        <td><?= studentEscape($course["CourseName"]) ?></td>
+                        <td><?= $total ?></td><td><?= $present ?></td><td><?= (int) $course["TotalTidakHadir"] ?></td>
+                        <td><strong><?= number_format($percentage, 1) ?>%</strong><?php if ($total > 0 && $percentage < 75): ?><div class="form-help" style="color:#b45309;font-weight:700">⚠ Kehadiran di bawah batas minimum 75%</div><?php elseif ($total > 0): ?><div class="form-help" style="color:#0e6251">Memenuhi batas minimum 75%</div><?php endif; ?><div style="height:8px;background:#e2e8f0;border-radius:8px;overflow:hidden;min-width:100px;margin-top:6px"><div style="height:8px;width:<?= $percentage ?>%;background:#0e6251;border-radius:8px"></div></div></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <p class="form-help">Persentase dihitung dari jumlah status Hadir dibagi seluruh pertemuan yang sudah dicatat dosen. Batas minimum kehadiran adalah 75%.</p>
+    <?php endif; ?>
+</section>
 
-			<section class="community-content-section room-verification-section" id="verifikasi-ruangan">
-				<div class="home-container">
-					<div class="community-section-heading">
-						<div>
-							<p class="home-eyebrow">PRESENSI BIOMETRIK</p>
-							<h2>Verifikasi masuk ruangan</h2>
-						</div>
-						<span class="community-section-number">AKSES</span>
-					</div>
-					<p id="verification-status" class="community-data-status" role="status">Memuat status ruangan...</p>
-					<div class="verification-layout">
-						<div class="verification-controls">
-							<label for="room-select">Pilih ruangan</label>
-							<select id="room-select">
-								<option value="">Memuat ruangan...</option>
-							</select>
-							<button type="button" id="fingerprint-button" class="room-action lock-action" disabled>1. Verifikasi sidik jari</button>
-							<button type="button" id="face-button" class="room-action open-action" disabled>2. Aktifkan &amp; verifikasi wajah</button>
-							<button type="button" id="enter-room-button" class="home-button" disabled>Verifikasi dan masuk</button>
-						</div>
-						<div class="face-preview">
-							<video id="face-video" autoplay muted playsinline></video>
-							<span id="camera-status">Kamera belum aktif</span>
-						</div>
-					</div>
-					<p class="community-privacy-note">Mode presentasi ini mensimulasikan sidik jari dan menggunakan kamera perangkat untuk demonstrasi pengenalan wajah. Untuk sistem produksi, gunakan sensor sidik jari perangkat/SDK liveness dan enkripsi template biometrik.</p>
-				</div>
-			</section>
+<section class="student-content-panel">
+    <div class="student-panel-heading">
+        <div>
+            <p class="home-eyebrow">JADWAL KELAS A</p>
+            <h2>Jadwal <?= studentEscape($todayName) ?></h2>
+        </div>
+        <a href="Absensi.php">Ke absensi</a>
+    </div>
+    <?php if (!$todaySchedule): ?>
+        <p class="admin-empty">Tidak ada jadwal kuliah yang tercatat untuk hari ini.</p>
+    <?php else: ?>
+        <div class="attendance-table-wrap">
+            <table class="attendance-table">
+                <thead>
+                    <tr><th>Mata Kuliah</th><th>Waktu</th><th>Ruangan</th><th>Jenis</th></tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($todaySchedule as $schedule): ?>
+                        <tr>
+                            <td><?= studentEscape($schedule["CourseName"]) ?></td>
+                            <td>
+                                <?= $schedule["StartTime"] && $schedule["EndTime"]
+                                    ? studentEscape(substr($schedule["StartTime"], 0, 5) . " - " . substr($schedule["EndTime"], 0, 5))
+                                    : "Waktu menyusul" ?>
+                            </td>
+                            <td><?= studentEscape($schedule["RoomName"]) ?></td>
+                            <td><?= studentEscape($schedule["ScheduleType"]) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php endif; ?>
+</section>
 
-		</main>
+<section class="student-content-panel">
+    <div class="student-panel-heading">
+        <div>
+            <p class="home-eyebrow">PINTASAN</p>
+            <h2>Kelola akun</h2>
+        </div>
+    </div>
+    <div class="student-quick-links">
+        <a href="Profil.php">Lihat atau ubah biodata</a>
+        <a href="Biometrik.php">Daftar atau perbarui foto wajah</a>
+        <a href="Absensi.php">Mulai absensi</a>
+    </div>
+</section>
 
-		<footer class="home-footer">
-			<div class="home-container">
-				<span>Sistem Absensi Kampus</span>
-				<span>Fingerprint dan pengenalan wajah.</span>
-			</div>
-		</footer>
-		<script>
-			const roomCsrfToken = <?= json_encode($csrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-			const roomSelect = document.getElementById("room-select");
-			const verificationStatus = document.getElementById("verification-status");
-			const fingerprintButton = document.getElementById("fingerprint-button");
-			const faceButton = document.getElementById("face-button");
-			const enterRoomButton = document.getElementById("enter-room-button");
-			const faceVideo = document.getElementById("face-video");
-			const cameraStatus = document.getElementById("camera-status");
-			let fingerprintVerified = false;
-			let faceVerified = false;
-			let cameraStream = null;
+<script>
+    const networkBanner = document.getElementById("network-status-banner");
+    const notifBtn = document.getElementById("enable-notif-btn");
+    const todayScheduleData = <?= json_encode($todaySchedule, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 
-			function stopCamera() {
-				if (cameraStream) {
-					cameraStream.getTracks().forEach((track) => track.stop());
-					cameraStream = null;
-				}
-				faceVideo.srcObject = null;
-				cameraStatus.textContent = "Kamera belum aktif";
-			}
+    // Cache jadwal hari ini untuk mode offline
+    try {
+        localStorage.setItem("siabak_today_schedule", JSON.stringify(todayScheduleData));
+    } catch (e) {}
 
-			function resetVerification(message) {
-				fingerprintVerified = false;
-				faceVerified = false;
-				faceButton.disabled = true;
-				enterRoomButton.disabled = true;
-				stopCamera();
-				verificationStatus.textContent = message;
-			}
+    // Deteksi status koneksi online / offline
+    function updateNetwork() {
+        if (!navigator.onLine) {
+            networkBanner.textContent = "⚠️ Perangkat Anda dalam mode offline. Data jadwal tetap tersimpan di perangkat.";
+            networkBanner.className = "network-status-banner offline";
+            networkBanner.hidden = false;
+        } else {
+            networkBanner.textContent = "✅ Anda kembali online.";
+            networkBanner.className = "network-status-banner online";
+            networkBanner.hidden = false;
+            setTimeout(() => { networkBanner.hidden = true; }, 3000);
+        }
+    }
+    window.addEventListener("online", updateNetwork);
+    window.addEventListener("offline", updateNetwork);
+    if (!navigator.onLine) updateNetwork();
 
-			async function loadRoomsForStudent() {
-				try {
-					const response = await fetch("../Koneksi/Room.php", { headers: { Accept: "application/json" } });
-					const result = await response.json();
-					if (!response.ok || !result.success) throw new Error(result.message);
-					roomSelect.replaceChildren(new Option("Pilih ruangan", ""));
-					result.rooms.forEach((room) => {
-						const locked = room.RoomStatus === "locked";
-						roomSelect.add(new Option(`${room.RoomName}${locked ? " - TERKUNCI" : " - TERBUKA"}`, room.RoomName));
-					});
-					fingerprintButton.disabled = false;
-					verificationStatus.textContent = "Pilih ruangan, lalu lakukan kedua tahap verifikasi.";
-				} catch (error) {
-					verificationStatus.textContent = error.message;
-				}
-			}
+    // Pengaturan Notifikasi Web / Perangkat
+    function checkNotificationStatus() {
+        if (!("Notification" in window)) {
+            notifBtn.textContent = "Notifikasi Tidak Didukung";
+            notifBtn.disabled = true;
+            return;
+        }
+        if (Notification.permission === "granted") {
+            notifBtn.textContent = "✅ Notifikasi Aktif";
+            notifBtn.style.background = "#0e6251";
+            notifBtn.style.borderColor = "#0e6251";
+        } else if (Notification.permission === "denied") {
+            notifBtn.textContent = "Notifikasi Diblokir";
+            notifBtn.disabled = true;
+        }
+    }
 
-			roomSelect.addEventListener("change", () => {
-				resetVerification(roomSelect.value
-					? "Tahap 1: verifikasi sidik jari pada sensor/simulasi."
-					: "Pilih ruangan terlebih dahulu.");
-			});
+    notifBtn.addEventListener("click", async () => {
+        if (!("Notification" in window)) return;
+        try {
+            const permission = await Notification.requestPermission();
+            if (permission === "granted") {
+                checkNotificationStatus();
+                new Notification("SIABAK Akademik", {
+                    body: "Pengingat berhasil diaktifkan! Anda akan menerima pemberitahuan saat jadwal kuliah berlangsung.",
+                    icon: "../Logo.png"
+                });
+            }
+        } catch (e) {}
+    });
 
-			fingerprintButton.addEventListener("click", () => {
-				if (!roomSelect.value) {
-					verificationStatus.textContent = "Pilih ruangan terlebih dahulu.";
-					return;
-				}
-				fingerprintVerified = true;
-				faceButton.disabled = false;
-				verificationStatus.textContent = "Sidik jari berhasil diverifikasi (mode simulasi). Lanjutkan ke wajah.";
-			});
-
-			faceButton.addEventListener("click", async () => {
-				if (!fingerprintVerified) {
-					verificationStatus.textContent = "Verifikasi sidik jari terlebih dahulu.";
-					return;
-				}
-				if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-					verificationStatus.textContent = "Browser tidak mendukung akses kamera.";
-					return;
-				}
-				try {
-					cameraStream = await navigator.mediaDevices.getUserMedia({
-						video: { facingMode: "user" },
-						audio: false
-					});
-					faceVideo.srcObject = cameraStream;
-					cameraStatus.textContent = "Wajah terdeteksi (mode demonstrasi)";
-					faceVerified = true;
-					enterRoomButton.disabled = false;
-					verificationStatus.textContent = "Sidik jari dan wajah berhasil diverifikasi.";
-				} catch (error) {
-					cameraStatus.textContent = "Kamera tidak dapat diaktifkan";
-					verificationStatus.textContent = "Izinkan akses kamera untuk tahap pengenalan wajah.";
-				}
-			});
-
-			enterRoomButton.addEventListener("click", async () => {
-				if (!roomSelect.value || !fingerprintVerified || !faceVerified) {
-					verificationStatus.textContent = "Lengkapi kedua tahap verifikasi terlebih dahulu.";
-					return;
-				}
-				enterRoomButton.disabled = true;
-				verificationStatus.textContent = "Memeriksa status ruangan...";
-				const form = new FormData();
-				form.set("action", "verify_access");
-				form.set("room_name", roomSelect.value);
-				form.set("fingerprint_verified", "1");
-				form.set("face_verified", "1");
-				form.set("csrf_token", roomCsrfToken);
-				try {
-					const response = await fetch("../Koneksi/Room.php", {
-						method: "POST",
-						body: form,
-						headers: { Accept: "application/json" }
-					});
-					const result = await response.json();
-					verificationStatus.textContent = result.message;
-					if (response.ok && result.success) {
-						await loadRoomsForStudent();
-						resetVerification("Verifikasi berhasil. Pilih ruangan jika ingin melakukan presensi lagi.");
-					}
-				} catch (error) {
-					verificationStatus.textContent = "Verifikasi masuk tidak dapat diproses.";
-				} finally {
-					enterRoomButton.disabled = false;
-				}
-			});
-
-			window.addEventListener("beforeunload", stopCamera);
-
-			loadRoomsForStudent();
-		</script>
-	</body>
-</html>
+    checkNotificationStatus();
+</script>
+<?php require __DIR__ . "/Student_Footer.php"; ?>

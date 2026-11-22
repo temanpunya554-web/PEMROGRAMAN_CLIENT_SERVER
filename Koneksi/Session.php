@@ -10,6 +10,7 @@ if ($_SERVER["REQUEST_METHOD"] !== "GET") {
 session_start();
 $authenticated = isset($_SESSION["username"]) && is_string($_SESSION["username"]);
 $role = null;
+$displayName = null;
 
 if ($authenticated) {
     mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
@@ -34,6 +35,18 @@ if ($authenticated) {
                 ? "admin"
                 : ($role === "dosen" ? "dosen" : "mahasiswa");
             $_SESSION["role"] = $role;
+
+            $profileTable = $role === "dosen"
+                ? "dosen_profiles"
+                : ($role === "admin" ? "account_profiles" : "mahasiswa_profiles");
+            $profileStatement = mysqli_prepare($conn, "SELECT `FullName` FROM `" . $profileTable . "` WHERE `Username` = ? LIMIT 1");
+            mysqli_stmt_bind_param($profileStatement, "s", $_SESSION["username"]);
+            mysqli_stmt_execute($profileStatement);
+            mysqli_stmt_bind_result($profileStatement, $profileName);
+            if (mysqli_stmt_fetch($profileStatement) && is_string($profileName) && trim($profileName) !== "") {
+                $displayName = $profileName;
+            }
+            mysqli_stmt_close($profileStatement);
         }
     } catch (Throwable $error) {
         error_log("Session role lookup error: " . $error->getMessage());
@@ -47,5 +60,6 @@ echo json_encode([
     "success" => true,
     "authenticated" => $authenticated,
     "username" => $authenticated ? $_SESSION["username"] : null,
+    "display_name" => $authenticated ? ($displayName ?: $_SESSION["username"]) : null,
     "role" => $role,
 ]);

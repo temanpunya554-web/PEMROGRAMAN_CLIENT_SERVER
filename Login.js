@@ -423,7 +423,7 @@ logoutButton.addEventListener("click", async () => {
 		if (!response.ok || !result.success) {
 			throw new Error(result.message || "Logout gagal.");
 		}
-		window.location.href = "Interface.html?login=1";
+		window.location.href = "SIABAK.html?login=1";
 	} catch {
 		accountMessage.textContent = "Logout gagal. Periksa koneksi server lalu coba lagi.";
 		accountMessage.hidden = false;
