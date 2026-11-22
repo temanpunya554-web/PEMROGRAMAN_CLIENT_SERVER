@@ -51,7 +51,10 @@ if ($authenticated) {
     } catch (Throwable $error) {
         error_log("Session role lookup error: " . $error->getMessage());
         http_response_code(500);
-        echo json_encode(["success" => false, "message" => "Status akun tidak dapat diperiksa."]);
+        echo json_encode([
+            "success" => false,
+            "message" => "Layanan akun tidak dapat terhubung ke database. Periksa pengaturan dan izin akses database.",
+        ]);
         exit;
     }
 }

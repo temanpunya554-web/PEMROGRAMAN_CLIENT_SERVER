@@ -601,9 +601,14 @@ async function updateAccountButtons() {
 		const response = await fetch("Koneksi/Session.php", {
 			headers: { Accept: "application/json" },
 		});
-		const result = await response.json();
+		let result;
+		try {
+			result = await response.json();
+		} catch {
+			throw new Error("Server web mengirim respons yang tidak valid.");
+		}
 		if (!response.ok || !result.success) {
-			throw new Error("Status sesi tidak tersedia.");
+			throw new Error(result.message || "Status sesi tidak tersedia.");
 		}
 
 		registerButton.hidden = result.authenticated;
@@ -619,8 +624,10 @@ async function updateAccountButtons() {
 		}
 		logoutButton.hidden = !result.authenticated;
 		accountMessage.hidden = true;
-	} catch {
-		accountMessage.textContent = "Status sesi tidak dapat diperiksa. Pastikan server aktif.";
+	} catch (error) {
+		accountMessage.textContent = error instanceof Error
+			? error.message
+			: "Tidak dapat menghubungi server web. Pastikan Apache aktif.";
 		accountMessage.hidden = false;
 	}
 }

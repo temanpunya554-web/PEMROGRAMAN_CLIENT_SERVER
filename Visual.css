@@ -2327,3 +2327,88 @@ body {
   background: #162c6d;
 }
 
+.home-page .navbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "brand actions"
+    "links status";
+  align-items: center;
+  gap: 12px 24px;
+  max-width: 1440px;
+}
+
+.home-page .navbar > .logo {
+  grid-area: brand;
+  min-width: 0;
+  font-size: clamp(28px, 2.4vw, 36px);
+  line-height: 1.05;
+}
+
+.home-page .navbar > .logo span {
+  max-width: 440px;
+}
+
+.home-page .navbar > .nav-menu {
+  grid-area: links;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+}
+
+.home-page .navbar > .nav-actions {
+  grid-area: actions;
+  justify-self: end;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.home-page .navbar > .account-message {
+  grid-area: status;
+  justify-self: end;
+  max-width: 520px;
+  text-align: right;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .home-page .navbar {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "brand"
+      "links"
+      "actions"
+      "status";
+    justify-items: center;
+    gap: 12px;
+  }
+
+  .home-page .navbar > .logo {
+    justify-self: center;
+    font-size: clamp(24px, 6vw, 32px);
+    text-align: center;
+  }
+
+  .home-page .navbar > .logo span {
+    max-width: 100%;
+  }
+
+  .home-page .navbar > .logo .logo-image {
+    width: 64px;
+    height: 64px;
+  }
+
+  .home-page .navbar > .nav-menu,
+  .home-page .navbar > .nav-actions,
+  .home-page .navbar > .account-message {
+    justify-self: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .home-page .navbar > .account-message {
+    max-width: 100%;
+  }
+}
+
