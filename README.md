@@ -101,6 +101,12 @@ Catatan: database versi awal belum menghubungkan data absensi biometrik `class_a
 
 4. Dashboard mahasiswa menampilkan persentase kehadiran tiap mata kuliah. Dashboard dosen menampilkan ringkasan persentase kelas dan persentase per mahasiswa. Sistem memberi peringatan bila persentase di bawah 75%.
 
+## Endpoint penugasan dosen dan tabel permohonan izin
+
+- `Koneksi/Save_Teacher_Course_Assignment.php` menerima POST dari admin dengan token CSRF, `dosen_username`, dan `schedule_ids[]`. Kirim `clear_assignments=1` tanpa daftar jadwal untuk menghapus seluruh jadwal dosen tersebut. Endpoint ini belum dihubungkan ke form dashboard admin; penugasan melalui UI masih dilakukan dengan mengisi `dosen_course_assignments`.
+- Jalankan `Koneksi/Migration_Student_Leave_Requests.sql` setelah `Setup_Database.sql` dan `Migration_Attendance_Schedule.sql` untuk menyiapkan penyimpanan permohonan Izin/Sakit per mahasiswa, jadwal, dan tanggal. Form dan endpoint pengajuan belum tersedia.
+- `Koneksi/Record_Attendance.php` adalah helper untuk jadwal aktif tertentu. Alur absensi yang berjalan tetap memakai validasi biometrik/lokasi dan pencatatan di `Koneksi/Room.php`; helper ini hanya boleh dipanggil setelah bukti tersebut tervalidasi.
+
 ## Catatan verifikasi biometrik pada tahap pengembangan
 
 Alur absensi saat ini mewajibkan urutan geofencing, langkah sidik jari, lalu kamera wajah. Nilai `FingerprintVerified` dan `FaceVerified` dicatat pada tabel `class_attendance`. Namun, tombol sidik jari dan langkah kamera masih berupa simulasi/prototipe; kamera hanya diaktifkan dan belum melakukan pencocokan identitas wajah. Integrasi perangkat/SDK sidik jari dan mesin pengenalan wajah sungguhan masih perlu dikerjakan sebelum digunakan sebagai verifikasi produksi.
