@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SIABAK - Sistem Absensi Akademik</title>
+    <link rel="stylesheet" href="Visual.css?v=20261120-absensi" />
+  </head>
+
+  <body class="home-page">
+    <header class="header">
+      <nav class="navbar">
+        <a class="logo" href="#beranda" aria-label="Beranda">
+          <img src="Logo SIABAK Akademik Modern.png" alt="Logo" class="logo-image" />
+          <span>Sistem Absensi Kampus</span>
+        </a>
+
+        <ul class="nav-menu">
+          <li><a href="#beranda">Beranda</a></li>
+          <li><a href="#fitur">Fitur</a></li>
+          <li><a href="#ruangan">Ruangan</a></li>
+        </ul>
+
+        <div class="nav-actions">
+          <button type="button" class="nav-button nav-button-secondary" id="register-button" aria-controls="register-modal">Daftar Mahasiswa</button>
+          <button type="button" class="nav-button" id="login-button" aria-controls="service-modal">Masuk</button>
+          <a class="nav-button" id="dashboard-button" href="Dasbor/Beranda.php" hidden>Beranda</a>
+          <button type="button" class="nav-button nav-button-secondary" id="logout-button" hidden>Keluar / Ganti akun</button>
+        </div>
+        <p class="account-message" id="account-message" role="status" hidden></p>
+      </nav>
+    </header>
+
+    <main class="community-home">
+      <section class="community-hero siakad-hero" id="beranda">
+        <div class="home-container community-hero-inner">
+          <div class="community-hero-copy">
+            <p class="home-eyebrow">SISTEM INFORMASI AKADEMIK</p>
+            <h1>Sistem Absensi Kampus Universitas</h1>
+            <p>Platform absensi akademik untuk mahasiswa, dosen, dan operator yang mendukung sidik jari serta pengenalan wajah.</p>
+            <div class="home-actions">
+              <button type="button" class="community-join-button siakad-primary" id="community-join-button">Masuk ke Layanan</button>
+              <a class="home-secondary-link siakad-outline" href="#fitur">Pelajari Selengkapnya</a>
+            </div>
+          </div>
+          <aside class="community-hero-note">
+            <span class="community-note-mark" aria-hidden="true">A</span>
+            <p>Mahasiswa melakukan verifikasi, dosen mengatur akses ruangan, dan operator memantau data absensi.</p>
+          </aside>
+        </div>
+      </section>
+
+      <section class="home-section community-intro" id="fitur">
+        <div class="home-container home-info-layout">
+          <div class="home-section-heading">
+            <p class="home-eyebrow">LAYANAN AKADEMIK</p>
+            <h2>Absensi terintegrasi dengan akses ruangan.</h2>
+          </div>
+          <div class="home-section-copy">
+            <p>Mahasiswa melakukan fingerprint dan pengenalan wajah, dosen mengatur status ruangan, dan operator memantau data akademik.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="community-content-section" id="ruangan">
+        <div class="home-container">
+          <div class="community-section-heading">
+            <div>
+              <p class="home-eyebrow">ALUR ABSENSI</p>
+              <h2>Tiga tahap verifikasi</h2>
+            </div>
+            <span class="community-section-number">01</span>
+          </div>
+          <div class="community-card-grid">
+            <article class="community-card"><h3>1. Pilih ruangan</h3><p>Mahasiswa memilih ruangan yang sedang terbuka.</p></article>
+            <article class="community-card"><h3>2. Verifikasi biometrik</h3><p>Mahasiswa menyelesaikan sidik jari dan pengenalan wajah.</p></article>
+            <article class="community-card"><h3>3. Catat kehadiran</h3><p>Jika ruangan terbuka, kehadiran dicatat ke sistem.</p></article>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="login-modal service-modal" id="service-modal" role="dialog" aria-modal="true" aria-labelledby="service-title" hidden>
+      <div class="service-selection-box">
+        <button class="close-button" id="close-service" type="button" aria-label="Tutup">&times;</button>
+        <h2 id="service-title">Masuk Sebagai Mahasiswa, Dosen, atau Operator?</h2>
+        <div class="service-card-grid">
+          <button class="service-card" type="button" data-role="mahasiswa">
+            <span class="service-avatar" aria-hidden="true">M</span>
+            <strong>Mahasiswa</strong>
+            <span>Akses absensi, sidik jari, wajah, dan ruangan akademik.</span>
+            <b>Masuk</b>
+          </button>
+          <button class="service-card" type="button" data-role="dosen">
+            <span class="service-avatar" aria-hidden="true">D</span>
+            <strong>Dosen</strong>
+            <span>Kelola aktivitas akademik dan status akses ruangan.</span>
+            <b>Masuk</b>
+          </button>
+          <button class="service-card" type="button" data-role="admin">
+            <span class="service-avatar" aria-hidden="true">O</span>
+            <strong>Operator</strong>
+            <span>Kelola data akademik, mahasiswa, dosen, dan jadwal.</span>
+            <b>Masuk</b>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="login-modal" id="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-title" hidden>
+      <div class="login-box">
+        <button class="close-button" id="close-login" type="button" aria-label="Tutup">&times;</button>
+        <h2 id="login-title">Masuk Sebagai Mahasiswa</h2>
+        <form id="login-form">
+          <input id="login-role" name="login_role" type="hidden" value="mahasiswa" />
+
+          <label for="username">NIM atau Email:</label>
+          <input id="username" name="username" type="text" autocomplete="username" placeholder="Masukkan NIM atau Email" required />
+
+          <label for="password">Kata Sandi:</label>
+          <div class="password-field">
+            <input id="password" name="password" type="password" autocomplete="current-password" required />
+            <button class="password-toggle" id="password-toggle" type="button" aria-label="Tampilkan kata sandi" title="Tampilkan kata sandi">&#128065;</button>
+          </div>
+
+          <button class="submit-button" type="submit">Masuk</button>
+          <p class="login-message" id="login-message" role="status"></p>
+          <p class="auth-switch">Belum punya akun? <button class="text-button" id="open-register" type="button">Daftar sekarang</button></p>
+        </form>
+      </div>
+    </div>
+
+    <div class="login-modal auth-modal" id="register-modal" role="dialog" aria-modal="true" aria-labelledby="register-title" hidden>
+      <div class="login-box register-box">
+        <button class="close-button" id="close-register" type="button" aria-label="Tutup">&times;</button>
+        <h2 id="register-title">Daftar Akun</h2>
+        <form id="register-form">
+          <label for="register-name">Nama lengkap:</label>
+          <input id="register-name" name="full_name" type="text" autocomplete="name" maxlength="100" required />
+
+          <label for="register-nik">NIK:</label>
+          <input id="register-nik" name="nik" type="text" inputmode="numeric" minlength="16" maxlength="16" pattern="[0-9]{16}" aria-describedby="nik-help" required />
+          <small class="form-help" id="nik-help">NIK terdiri dari 16 digit sesuai KTP.</small>
+
+          <label for="register-username">NIM:</label>
+          <input id="register-username" name="username" type="text" autocomplete="username" minlength="3" maxlength="50" pattern="[A-Za-z0-9._\-]{3,50}" aria-describedby="nim-help" required />
+          <small class="form-help" id="nim-help">NIM digunakan sebagai username login.</small>
+
+          <label for="register-email">Email:</label>
+          <input id="register-email" name="email" type="email" autocomplete="email" maxlength="254" required />
+
+          <label for="register-gender">Jenis kelamin:</label>
+          <select id="register-gender" name="gender" required>
+            <option value="">Pilih jenis kelamin</option>
+            <option value="Laki-laki">Laki-laki</option>
+            <option value="Perempuan">Perempuan</option>
+            <option value="Lainnya">Lainnya</option>
+          </select>
+
+          <label for="register-birth-date">Tanggal lahir:</label>
+          <input id="register-birth-date" name="birth_date" type="date" required />
+
+          <label for="register-photo">Foto Mahasiswa:</label>
+          <input id="register-photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" required />
+          <small class="form-help">Unggah foto wajah berformat JPG, PNG, atau WebP maksimal 3 MB.</small>
+
+          <label for="register-country">Negara:</label>
+          <select id="register-country" name="country" autocomplete="country-name" aria-describedby="country-status" required disabled>
+            <option value="">Memuat daftar negara...</option>
+          </select>
+          <input id="register-country-manual" type="text" value="Indonesia" autocomplete="country-name" maxlength="100" aria-describedby="country-status" hidden disabled />
+          <small class="form-help" id="country-status" role="status">Daftar negara sedang dimuat.</small>
+
+          <div id="indonesia-location-fields">
+            <label for="register-province">Provinsi:</label>
+            <select id="register-province" name="province" autocomplete="address-level1" aria-describedby="location-status-message" required disabled>
+              <option value="">Pilih provinsi</option>
+            </select>
+
+            <label for="register-regency">Kabupaten/kota:</label>
+            <select id="register-regency" name="regency" autocomplete="address-level2" required disabled>
+              <option value="">Pilih kabupaten/kota</option>
+            </select>
+
+            <label for="register-district">Kecamatan:</label>
+            <select id="register-district" name="district" required disabled>
+              <option value="">Pilih kecamatan</option>
+            </select>
+
+            <label for="register-village">Desa/kelurahan:</label>
+            <select id="register-village" name="village" required disabled>
+              <option value="">Pilih desa/kelurahan</option>
+            </select>
+            <small class="form-help" id="location-status-message" role="status">Daftar wilayah Indonesia sedang dimuat.</small>
+          </div>
+
+          <div id="manual-location-fields" hidden>
+            <label for="register-province-manual">Provinsi/daerah:</label>
+            <input id="register-province-manual" name="province" type="text" list="international-province-options" autocomplete="address-level1" maxlength="100" required disabled />
+            <datalist id="international-province-options"></datalist>
+
+            <label for="register-regency-manual">Kabupaten/kota:</label>
+            <input id="register-regency-manual" name="regency" type="text" autocomplete="address-level2" maxlength="100" required disabled />
+
+            <label for="register-district-manual">Kecamatan:</label>
+            <input id="register-district-manual" name="district" type="text" maxlength="100" required disabled />
+
+            <label for="register-village-manual">Desa/kelurahan:</label>
+            <input id="register-village-manual" name="village" type="text" maxlength="100" required disabled />
+            <small class="form-help" id="manual-location-status" role="status"></small>
+          </div>
+
+          <label for="register-password">Kata sandi:</label>
+          <input id="register-password" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="72" required />
+
+          <label for="register-password-confirm">Ulangi kata sandi:</label>
+          <input id="register-password-confirm" name="password_confirm" type="password" autocomplete="new-password" minlength="8" maxlength="72" required />
+
+          <fieldset class="location-fieldset">
+            <legend>Lokasi (opsional)</legend>
+            <p class="form-help">Lokasi hanya diambil jika kamu menyetujui permintaan browser. Koordinat akan disimpan bersama profil akun.</p>
+            <div class="location-controls">
+              <button class="location-button" id="get-location" type="button">Izinkan &amp; ambil lokasi</button>
+              <button class="text-button" id="clear-location" type="button" hidden>Hapus lokasi</button>
+            </div>
+            <p class="form-help" id="location-status" role="status">Belum ada lokasi yang dipilih.</p>
+            <input id="register-latitude" name="latitude" type="hidden" />
+            <input id="register-longitude" name="longitude" type="hidden" />
+          </fieldset>
+
+          <button class="submit-button" type="submit">Buat akun</button>
+          <p class="login-message" id="register-message" role="status"></p>
+          <p class="auth-switch">Sudah punya akun? <button class="text-button" id="open-login" type="button">Login</button></p>
+        </form>
+      </div>
+    </div>
+
+    <footer class="home-footer">
+      <div class="home-container">
+        <span>Sistem Absensi Kampus</span>
+        <span>Fingerprint dan pengenalan wajah.</span>
+      </div>
+    </footer>
+
+    <script src="Login.js"></script>
+    </body>
+</html>

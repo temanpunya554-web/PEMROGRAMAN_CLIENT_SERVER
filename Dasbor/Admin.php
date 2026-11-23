@@ -253,6 +253,7 @@ function renderPercentList($counts)
         <a href="#data-akun">Data Akun</a>
         <a href="#ruangan">Ruangan</a>
         <a href="#absensi">Absensi</a>
+        <a href="#pesan-bantuan">Pesan & Bantuan <span id="admin-nav-chat-badge" class="nav-chat-badge" hidden>0</span></a>
     </nav>
     <div class="student-app-content admin-app-content">
       <div class="admin-dashboard home-container">
@@ -413,6 +414,56 @@ function renderPercentList($counts)
                 </table>
             </div>
         <?php endif; ?>
+    </section>
+
+    <section class="admin-panel" id="pesan-bantuan">
+        <div class="admin-panel-heading">
+            <div>
+                <p class="home-eyebrow">PUSAT BANTUAN & PESAN</p>
+                <h2>Chat Mahasiswa & Dosen</h2>
+            </div>
+            <span id="admin-chat-unread-summary" class="admin-muted">Memuat percakapan...</span>
+        </div>
+
+        <div class="admin-chat-layout">
+            <aside class="admin-chat-user-list">
+                <div class="admin-chat-user-list-header">
+                    <strong>Percakapan Masuk</strong>
+                    <button type="button" id="refresh-chat-users" class="chat-refresh-btn" title="Segarkan daftar">🔄</button>
+                </div>
+                <div id="admin-chat-users-stream" class="admin-chat-users-stream">
+                    <p class="admin-empty" style="padding: 16px;">Memuat pengguna...</p>
+                </div>
+            </aside>
+
+            <div class="admin-chat-conversation">
+                <div id="admin-chat-empty-state" class="admin-chat-empty-state">
+                    <div style="font-size: 38px; margin-bottom: 8px;">💬</div>
+                    <p>Pilih salah satu mahasiswa atau dosen dari daftar di sebelah kiri untuk melihat dan membalas pesan bantuan.</p>
+                </div>
+
+                <div id="admin-chat-active-box" class="admin-chat-active-box" hidden>
+                    <div class="admin-chat-active-header">
+                        <div>
+                            <strong id="active-chat-user-name">-</strong>
+                            <span id="active-chat-user-role" class="admin-chat-role-badge">-</span>
+                        </div>
+                        <span id="active-chat-user-username" class="admin-muted" style="font-size: 13px;"></span>
+                    </div>
+
+                    <div id="admin-chat-messages-container" class="admin-chat-messages-container">
+                        <div id="admin-chat-stream" class="chat-stream"></div>
+                    </div>
+
+                    <form id="admin-chat-form" class="admin-chat-form">
+                        <input type="text" id="admin-chat-input" class="chat-input-field" placeholder="Ketik balasan untuk pengguna..." autocomplete="off" required />
+                        <button type="submit" id="admin-chat-send-btn" class="home-button" style="margin: 0; padding: 0 18px;">
+                            Kirim
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
     </section>
       </div>
     </div>
@@ -653,6 +704,194 @@ function renderPercentList($counts)
         searchBox.addEventListener("input", renderTable);
         loadRows();
     })();
+</script>
+
+<script>
+(function() {
+    const navBadge = document.getElementById("admin-nav-chat-badge");
+    const summarySpan = document.getElementById("admin-chat-unread-summary");
+    const usersStream = document.getElementById("admin-chat-users-stream");
+    const refreshBtn = document.getElementById("refresh-chat-users");
+    const emptyState = document.getElementById("admin-chat-empty-state");
+    const activeBox = document.getElementById("admin-chat-active-box");
+    const activeName = document.getElementById("active-chat-user-name");
+    const activeRole = document.getElementById("active-chat-user-role");
+    const activeUsername = document.getElementById("active-chat-user-username");
+    const messagesContainer = document.getElementById("admin-chat-messages-container");
+    const chatStream = document.getElementById("admin-chat-stream");
+    const chatForm = document.getElementById("admin-chat-form");
+    const chatInput = document.getElementById("admin-chat-input");
+    const sendBtn = document.getElementById("admin-chat-send-btn");
+
+    let activeUser = null;
+    let pollInterval = null;
+    let lastMsgCount = 0;
+
+    function escape(str) {
+        const div = document.createElement("div");
+        div.textContent = str || "";
+        return div.innerHTML;
+    }
+
+    function formatTime(dateStr) {
+        try {
+            const date = new Date(dateStr);
+            return date.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+        } catch (e) {
+            return "";
+        }
+    }
+
+    async function loadConversations() {
+        try {
+            const res = await fetch("../Koneksi/Admin_Chat.php?action=get_conversations", { headers: { Accept: "application/json" } });
+            const data = await res.json();
+            if (!data.success) return;
+
+            const convs = data.conversations || [];
+            let totalUnread = 0;
+
+            if (convs.length === 0) {
+                usersStream.innerHTML = `<p class="admin-empty" style="padding: 16px;">Belum ada percakapan masuk dari mahasiswa atau dosen.</p>`;
+                summarySpan.textContent = "0 percakapan";
+                if (navBadge) navBadge.hidden = true;
+                return;
+            }
+
+            usersStream.innerHTML = "";
+            convs.forEach((c) => {
+                totalUnread += parseInt(c.UnreadCount || 0, 10);
+                const item = document.createElement("div");
+                item.className = "admin-chat-user-item" + (activeUser && activeUser.Username === c.Username ? " is-active" : "");
+                item.dataset.username = c.Username;
+
+                const unreadPill = c.UnreadCount > 0 ? `<span class="admin-chat-unread-pill">${c.UnreadCount}</span>` : "";
+
+                item.innerHTML = `
+                    <div class="admin-chat-item-header">
+                        <span class="admin-chat-item-name">${escape(c.DisplayName || c.Username)}</span>
+                        <span class="admin-chat-item-time">${formatTime(c.LastMessageTime)}</span>
+                    </div>
+                    <div class="admin-chat-item-body">
+                        <span class="admin-chat-role-badge ${escape(c.Role)}">${escape(c.Role)}</span>
+                        <span class="admin-chat-item-preview">${escape(c.LastMessage || "")}</span>
+                        ${unreadPill}
+                    </div>
+                `;
+
+                item.addEventListener("click", () => selectUser(c));
+                usersStream.appendChild(item);
+            });
+
+            summarySpan.textContent = `${convs.length} percakapan (${totalUnread} belum dibaca)`;
+            if (navBadge) {
+                if (totalUnread > 0) {
+                    navBadge.textContent = totalUnread > 99 ? "99+" : totalUnread;
+                    navBadge.hidden = false;
+                } else {
+                    navBadge.hidden = true;
+                }
+            }
+        } catch (e) {}
+    }
+
+    async function selectUser(userObj) {
+        activeUser = userObj;
+        emptyState.hidden = true;
+        activeBox.hidden = false;
+
+        activeName.textContent = userObj.DisplayName || userObj.Username;
+        activeRole.textContent = userObj.Role;
+        activeRole.className = `admin-chat-role-badge ${userObj.Role}`;
+        activeUsername.textContent = `@${userObj.Username}`;
+
+        document.querySelectorAll(".admin-chat-user-item").forEach((el) => {
+            el.classList.toggle("is-active", el.dataset.username === userObj.Username);
+        });
+
+        lastMsgCount = 0;
+        await loadMessages(true);
+        chatInput.focus();
+
+        if (pollInterval) clearInterval(pollInterval);
+        pollInterval = setInterval(() => loadMessages(false), 3500);
+    }
+
+    async function loadMessages(scrollToBottom = false) {
+        if (!activeUser) return;
+        try {
+            const res = await fetch(`../Koneksi/Admin_Chat.php?action=get_messages&target_user=${encodeURIComponent(activeUser.Username)}`, { headers: { Accept: "application/json" } });
+            const data = await res.json();
+            if (!data.success) return;
+
+            const messages = data.messages || [];
+            if (messages.length !== lastMsgCount) {
+                renderMessages(messages);
+                lastMsgCount = messages.length;
+                if (scrollToBottom || messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight < 120) {
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }
+            }
+        } catch (e) {}
+    }
+
+    function renderMessages(messages) {
+        chatStream.innerHTML = "";
+        messages.forEach((msg) => {
+            const isAdmin = msg.SenderRole === "admin";
+            const row = document.createElement("div");
+            row.className = isAdmin ? "chat-row chat-row-user" : "chat-row chat-row-admin";
+
+            const bubble = document.createElement("div");
+            bubble.className = isAdmin ? "chat-bubble chat-bubble-user" : "chat-bubble chat-bubble-admin";
+            bubble.innerHTML = `
+                <div class="chat-bubble-text">${escape(msg.Message)}</div>
+                <span class="chat-bubble-time">${formatTime(msg.CreatedAt)}</span>
+            `;
+
+            row.appendChild(bubble);
+            chatStream.appendChild(row);
+        });
+    }
+
+    chatForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!activeUser) return;
+        const text = chatInput.value.trim();
+        if (!text) return;
+
+        sendBtn.disabled = true;
+        const formData = new FormData();
+        formData.set("action", "send_message");
+        formData.set("receiver", activeUser.Username);
+        formData.set("message", text);
+
+        try {
+            const res = await fetch("../Koneksi/Admin_Chat.php", {
+                method: "POST",
+                body: formData,
+                headers: { Accept: "application/json" }
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                chatInput.value = "";
+                await loadMessages(true);
+                loadConversations();
+            } else {
+                alert(data.message || "Gagal mengirim balasan.");
+            }
+        } catch (err) {
+            alert("Gagal terhubung ke server chat.");
+        } finally {
+            sendBtn.disabled = false;
+            chatInput.focus();
+        }
+    });
+
+    refreshBtn.addEventListener("click", loadConversations);
+    loadConversations();
+    setInterval(loadConversations, 8000);
+})();
 </script>
 </body>
 </html>

@@ -113,3 +113,10 @@ Alur absensi saat ini mewajibkan urutan geofencing, langkah sidik jari, lalu kam
 4. Server membandingkan descriptor live dengan descriptor akun yang sedang login. Hanya jika cocok, server menerbitkan bukti sesi satu kali yang diperlukan oleh `Koneksi/Room.php` untuk mencatat absensi.
 
 **Catatan penting:** koneksi internet diperlukan untuk memuat pustaka dan model face-api.js. Akses kamera memerlukan HTTPS atau localhost. Ambang kecocokan awal adalah 0,52 dan perlu dikalibrasi menggunakan kamera serta kondisi pencahayaan kampus. Gerakan kepala merupakan pemeriksaan keaktifan dasar, bukan liveness/anti-spoof yang kuat; foto atau video yang diputar masih mungkin mengelabui pemeriksaan sederhana. Jangan gunakan sebagai satu-satunya faktor keamanan untuk penerapan resmi tanpa pengujian dan penguatan anti-spoof. Sidik jari tetap simulasi sampai perangkat dan SDK sensor tersedia.
+
+## Fitur layanan chat bantuan admin
+
+1. Jalankan `Koneksi/Migration_Admin_Chat.sql` pada database untuk membuat tabel `admin_chats` (tabel juga otomatis dibuat saat pertama kali endpoint chat diakses).
+2. Mahasiswa dan Dosen memiliki tombol mengambang (*floating action button*) **💬 Chat Admin** di sudut kanan bawah seluruh halaman dashboard mereka.
+3. Pesan yang dikirim pengguna masuk ke antrean admin secara instan dengan indikator status operator dan riwayat chat interaktif.
+4. Admin (Operator) dapat mengelola seluruh percakapan masuk di dashboard **Admin > Menu Pesan & Bantuan** (`#pesan-bantuan`), melihat daftar pengguna, membalas pesan, dan melihat jumlah notifikasi pesan yang belum terbaca secara live.
