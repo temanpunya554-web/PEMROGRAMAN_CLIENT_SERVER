@@ -21,7 +21,7 @@ $dosenPageLinks = [
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#223a6f" />
     <title><?= dosenEscape($dosenPageTitles[$activeDosenPage] ?? "Dosen") ?> | Absensi Kampus</title>
-    <link rel="stylesheet" href="../Visual.css?v=20261123-dashboard-nav-live-check" />
+    <link rel="stylesheet" href="../Visual.css?v=20261123-chat-hidden-state" />
 </head>
 <body class="home-page student-app dosen-app">
     <header class="header student-app-header">

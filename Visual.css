@@ -2484,6 +2484,11 @@ body {
    SISTEM CHAT ADMIN (WIDGET MAHASISWA/DOSEN & PANEL ADMIN)
    ========================================================= */
 
+/* Keep the native hidden attribute effective when component styles set display. */
+[hidden] {
+  display: none !important;
+}
+
 /* Tombol Floating Action Button (FAB) */
 .chat-fab-btn {
   position: fixed;

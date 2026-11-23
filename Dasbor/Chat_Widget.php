@@ -5,7 +5,7 @@ if (!isset($_SESSION["username"])) {
 }
 ?>
 <!-- Tombol Floating Chat Admin -->
-<button type="button" id="chat-fab-btn" class="chat-fab-btn" aria-label="Buka Chat Admin">
+<button type="button" id="chat-fab-btn" class="chat-fab-btn" aria-label="Buka Chat Admin" aria-controls="chat-window" aria-expanded="false">
     <svg class="chat-fab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
     </svg>
@@ -139,6 +139,7 @@ if (!isset($_SESSION["username"])) {
         chatWindow.hidden = !open;
         if (open) {
             fabBtn.classList.add("chat-fab-active");
+            fabBtn.setAttribute("aria-expanded", "true");
             badge.hidden = true;
             loadMessages(true);
             inputField.focus();
@@ -147,15 +148,20 @@ if (!isset($_SESSION["username"])) {
             }
         } else {
             fabBtn.classList.remove("chat-fab-active");
+            fabBtn.setAttribute("aria-expanded", "false");
             if (pollInterval) {
                 clearInterval(pollInterval);
                 pollInterval = null;
             }
+            fabBtn.focus();
         }
     }
 
     fabBtn.addEventListener("click", () => toggleChat(!isChatOpen));
     closeBtn.addEventListener("click", () => toggleChat(false));
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && isChatOpen) toggleChat(false);
+    });
 
     chatForm.addEventListener("submit", async (e) => {
         e.preventDefault();
