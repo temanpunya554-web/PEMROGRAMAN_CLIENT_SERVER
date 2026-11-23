@@ -228,30 +228,34 @@ function renderPercentList($counts)
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dashboard Operator | Absensi Kampus</title>
-    <link rel="stylesheet" href="../Visual.css?v=20261121-admin" />
+    <link rel="stylesheet" href="../Visual.css?v=20261123-dashboard-nav-live-check" />
 </head>
-<body class="home-page">
-<header class="header">
-    <nav class="navbar" aria-label="Navigasi admin">
+<body class="home-page student-app admin-app">
+<header class="header student-app-header">
+    <div class="student-app-header-inner">
         <a class="logo" href="Admin.php">
             <img src="../Logo SIABAK Akademik Modern.png" alt="" class="logo-image" />
             <span>Absensi Kampus</span>
         </a>
-        <ul class="nav-menu">
-            <li><a href="#ringkasan">Ringkasan</a></li>
-            <li><a href="#persentase">Persentase</a></li>
-            <li><a href="#data-akun">Data Akun</a></li>
-            <li><a href="#ruangan">Ruangan</a></li>
-            <li><a href="#absensi">Absensi</a></li>
-        </ul>
-        <form class="nav-actions" action="../Koneksi/Logout.php" method="post">
+        <div class="student-account-actions">
             <span class="session-user">Operator: <?= escapeHtml($displayName) ?></span>
-            <button class="nav-button nav-button-secondary" type="submit">Keluar</button>
-        </form>
-    </nav>
+            <form action="../Koneksi/Logout.php" method="post">
+                <button class="nav-button nav-button-secondary" type="submit">Keluar</button>
+            </form>
+        </div>
+    </div>
 </header>
 
-<main class="admin-dashboard home-container">
+<main class="student-app-layout admin-app-layout">
+    <nav class="student-app-nav admin-app-nav" aria-label="Menu operator">
+        <a href="#ringkasan">Ringkasan</a>
+        <a href="#persentase">Persentase</a>
+        <a href="#data-akun">Data Akun</a>
+        <a href="#ruangan">Ruangan</a>
+        <a href="#absensi">Absensi</a>
+    </nav>
+    <div class="student-app-content admin-app-content">
+      <div class="admin-dashboard home-container">
     <section id="ringkasan" class="admin-heading">
         <p class="home-eyebrow">PANEL OPERATOR</p>
         <h1>Ringkasan sistem absensi</h1>
@@ -410,6 +414,8 @@ function renderPercentList($counts)
             </div>
         <?php endif; ?>
     </section>
+      </div>
+    </div>
 </main>
 
 <dialog id="edit-dialog" class="admin-edit-dialog">
