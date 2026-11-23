@@ -50,7 +50,7 @@ require __DIR__ . "/Student_Header.php";
 
             <!-- TAHAP 3: KAMERA WAJAH -->
             <button type="button" id="face-button" class="room-action open-action" disabled>
-                3. Cocokkan wajah terdaftar
+                3. Verifikasi manusia &amp; cocokkan wajah
             </button>
 
             <!-- TAHAP 4: CATAT ABSENSI -->
@@ -66,7 +66,7 @@ require __DIR__ . "/Student_Header.php";
     </div>
 
     <p class="community-privacy-note">
-        <strong>Ketentuan Absensi:</strong> Mahasiswa harus berada di dalam radius geofencing ruangan (50–100 meter). Pencocokan wajah membandingkan kamera dengan ciri wajah akun yang terdaftar. Sistem meminta gerakan kepala sederhana sebagai pemeriksaan keaktifan; ini belum merupakan perlindungan anti-spoof tingkat produksi. Sidik jari masih simulasi karena perangkat belum tersedia.
+        <strong>Ketentuan Absensi:</strong> Mahasiswa harus berada di dalam radius geofencing ruangan (50–100 meter). Pencocokan wajah membandingkan kamera dengan ciri wajah akun yang terdaftar dan meminta tantangan acak berupa kedipan atau gerakan kepala. Pemeriksaan keaktifan ini berjalan di browser dan belum merupakan layanan anti-spoof tingkat produksi. Sidik jari masih simulasi karena perangkat belum tersedia.
     </p>
 </section>
 
@@ -135,6 +135,13 @@ require __DIR__ . "/Student_Header.php";
                   Math.sin(dLon / 2) * Math.sin(dLon / 2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return Math.round(R * c);
+    }
+
+    function calculateEyeAspectRatio(eye) {
+        const distance = (first, second) => Math.hypot(first.x - second.x, first.y - second.y);
+        const horizontal = distance(eye[0], eye[3]);
+        if (horizontal === 0) return 0;
+        return (distance(eye[1], eye[5]) + distance(eye[2], eye[4])) / (2 * horizontal);
     }
 
     function stopCamera() {
@@ -359,7 +366,7 @@ require __DIR__ . "/Student_Header.php";
         verificationStatus.textContent = "Tahap sidik jari simulasi selesai. Lanjutkan ke Tahap 3: Aktifkan kamera.";
     });
 
-    // --- TAHAP 3: PENCOCOKAN WAJAH + TANTANGAN GERAK SEDERHANA ---
+    // --- TAHAP 3: TANTANGAN KEAKTIFAN + PENCOCOKAN WAJAH ---
     faceButton.addEventListener("click", async () => {
         if (!fingerprintVerified) {
             verificationStatus.textContent = "Selesaikan verifikasi sidik jari terlebih dahulu.";
@@ -380,12 +387,20 @@ require __DIR__ . "/Student_Header.php";
                 await new Promise(resolve => faceVideo.onloadedmetadata = resolve);
                 await faceVideo.play();
             }
-            cameraStatus.textContent = "Kamera aktif. Ikuti instruksi gerakan kepala.";
-            verificationStatus.textContent = "Lihat kamera, lalu gerakkan kepala sedikit ke kiri dan ke kanan selama pemeriksaan.";
+            const challenge = Math.random() < 0.5 ? "blink" : "turn";
+            cameraStatus.textContent = "Pemeriksaan manusia aktif";
+            verificationStatus.textContent = challenge === "blink"
+                ? "Tantangan keaktifan: kedipkan mata sekali, lalu buka kembali saat melihat kamera."
+                : "Tantangan keaktifan: gerakkan kepala perlahan ke kiri lalu ke kanan.";
             const offsets = [];
+            const openEyeRatios = [];
+            let openEyeBaseline = null;
+            let eyesClosed = false;
+            let livenessPassed = false;
             let finalDetection = null;
-            for (let i = 0; i < 5; i++) {
-                await new Promise(resolve => setTimeout(resolve, 450));
+            const challengeDeadline = Date.now() + 12000;
+            while (Date.now() < challengeDeadline && !livenessPassed) {
+                await new Promise(resolve => setTimeout(resolve, 180));
                 const detection = await faceapi.detectSingleFace(faceVideo, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.6 })).withFaceLandmarks().withFaceDescriptor();
                 if (!detection) throw new Error("Wajah tidak terdeteksi. Pastikan wajah terlihat jelas dan pencahayaan cukup.");
                 const box = detection.detection.box;
@@ -396,9 +411,28 @@ require __DIR__ . "/Student_Header.php";
                 const eyesX = (leftEye.reduce((sum, point) => sum + point.x, 0) / leftEye.length + rightEye.reduce((sum, point) => sum + point.x, 0) / rightEye.length) / 2;
                 offsets.push((noseX - eyesX) / Math.max(box.width, 1));
                 finalDetection = detection;
+
+                if (challenge === "turn") {
+                    livenessPassed = Math.max(...offsets) - Math.min(...offsets) >= 0.035;
+                } else {
+                    const eyeRatio = (calculateEyeAspectRatio(leftEye) + calculateEyeAspectRatio(rightEye)) / 2;
+                    if (openEyeBaseline === null) {
+                        if (eyeRatio > 0.12) openEyeRatios.push(eyeRatio);
+                        if (openEyeRatios.length === 4) {
+                            openEyeBaseline = openEyeRatios.reduce((sum, value) => sum + value, 0) / openEyeRatios.length;
+                        }
+                    } else if (eyeRatio < openEyeBaseline * 0.68) {
+                        eyesClosed = true;
+                    } else if (eyesClosed && eyeRatio > openEyeBaseline * 0.82) {
+                        livenessPassed = true;
+                    }
+                }
             }
-            const movement = Math.max(...offsets) - Math.min(...offsets);
-            if (movement < 0.018) throw new Error("Gerakan belum terdeteksi. Ulangi dan gerakkan kepala sedikit ke kiri lalu kanan.");
+            if (!livenessPassed) {
+                throw new Error(challenge === "blink"
+                    ? "Kedipan belum terdeteksi. Coba lagi dengan pencahayaan yang cukup dan buka mata setelah berkedip."
+                    : "Gerakan kepala belum terdeteksi. Coba lagi dengan menoleh perlahan ke kiri lalu ke kanan.");
+            }
             const form = new FormData();
             form.set("csrf_token", roomCsrfToken);
             form.set("descriptor", JSON.stringify(Array.from(finalDetection.descriptor)));
@@ -409,7 +443,7 @@ require __DIR__ . "/Student_Header.php";
             faceVerified = true;
             enterRoomButton.disabled = false;
             cameraStatus.textContent = "Wajah cocok dengan akun terdaftar ✓";
-            verificationStatus.textContent = verifyResult.message + " Pemeriksaan gerakan sederhana berhasil.";
+            verificationStatus.textContent = verifyResult.message + " Tantangan keaktifan berhasil.";
         } catch (error) {
             faceVerified = false;
             faceProof = null;

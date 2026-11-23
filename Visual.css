@@ -1966,32 +1966,33 @@ body {
   .student-app-layout {
     width: calc(100% - 24px);
     min-height: auto;
-    padding: 22px 0 90px;
+    padding: 22px 0 54px;
     grid-template-columns: 1fr;
     gap: 18px;
   }
 
   .student-app-nav {
-    position: fixed;
-    z-index: 20;
-    right: 0;
-    bottom: 0;
-    left: 0;
+    position: static;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 2px;
-    padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
-    border: 0;
-    border-top: 1px solid #d9e4f2;
-    border-radius: 0;
+    padding: 6px;
+    border: 1px solid #d9e4f2;
+    border-radius: 14px;
     background: #ffffff;
-    box-shadow: 0 -6px 20px rgba(34, 58, 111, 0.1);
+    box-shadow: 0 8px 24px rgba(34, 58, 111, 0.05);
   }
 
   .student-app-nav a {
-    padding: 10px 2px;
+    display: grid;
+    min-width: 0;
+    min-height: 44px;
+    padding: 6px 2px;
+    place-items: center;
+    box-sizing: border-box;
     text-align: center;
-    font-size: 12px;
+    font-size: 11px;
+    line-height: 1.2;
   }
 
   .student-page-heading h1 {
@@ -2021,11 +2022,35 @@ body {
 
 @media (max-width: 768px) {
   .dosen-app-nav {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .dosen-history-filters {
     grid-template-columns: 1fr;
+  }
+}
+
+.admin-app-layout {
+  align-items: start;
+}
+
+.admin-app-content {
+  width: 100%;
+  min-width: 0;
+}
+
+.admin-app-content .admin-dashboard {
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+@media (max-width: 768px) {
+  .admin-app-layout {
+    padding-top: 18px;
+  }
+
+  .admin-app-content .admin-dashboard {
+    padding-top: 8px;
   }
 }
 
@@ -2326,5 +2351,132 @@ body {
 
 .notif-banner-card button:hover {
   background: #162c6d;
+}
+
+@media (max-width: 600px) {
+  .home-page:not(.student-app) .navbar {
+    gap: 12px;
+    padding: 14px 12px;
+  }
+
+  .home-page:not(.student-app) .navbar > .logo {
+    min-width: 0;
+    gap: 8px;
+    font-size: clamp(20px, 5.5vw, 26px);
+    line-height: 1.15;
+  }
+
+  .home-page:not(.student-app) .navbar > .logo .logo-image {
+    width: 52px;
+    height: 52px;
+    flex: 0 0 52px;
+  }
+
+  .home-page:not(.student-app) .nav-menu {
+    gap: 8px 14px;
+    padding: 4px 0;
+  }
+
+  .home-page:not(.student-app) .nav-menu a {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .home-page:not(.student-app) .nav-actions {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .home-page:not(.student-app) .nav-actions .nav-button,
+  .nav-button,
+  .community-join-button,
+  .location-button,
+  .room-action,
+  .admin-tab {
+    min-height: 44px;
+  }
+
+  .home-page:not(.student-app) .account-message {
+    flex: 1 0 100%;
+    text-align: center;
+  }
+
+  .login-box,
+  .register-box {
+    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .service-selection-box {
+    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
+  }
+
+}
+
+@media (max-width: 420px) {
+  .community-hero-inner {
+    gap: 24px;
+    padding-top: 40px;
+    padding-bottom: 40px;
+  }
+
+  .community-hero-copy h1 {
+    font-size: clamp(30px, 9.5vw, 36px);
+  }
+
+  .community-hero-copy > p:not(.home-eyebrow) {
+    font-size: 16px;
+  }
+
+  .home-actions {
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .home-actions > * {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    text-align: center;
+  }
+
+  .community-hero-note {
+    padding: 20px;
+  }
+
+  .student-app-nav {
+    padding-right: 4px;
+    padding-left: 4px;
+  }
+
+  .student-app-nav a {
+    padding-right: 1px;
+    padding-left: 1px;
+    font-size: 10px;
+  }
+}
+
+.register-box {
+  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
+}
+
+.service-selection-box {
+  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
+}
+
+.admin-edit-dialog {
+  max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 

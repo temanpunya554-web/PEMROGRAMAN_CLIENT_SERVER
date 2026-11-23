@@ -21,7 +21,7 @@ $studentPageLinks = [
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#223a6f" />
     <title><?= studentEscape($studentPageTitles[$activeStudentPage] ?? "Mahasiswa") ?> | Absensi Kampus</title>
-    <link rel="stylesheet" href="../Visual.css?v=20261121-student-menu" />
+    <link rel="stylesheet" href="../Visual.css?v=20261123-dashboard-nav-live-check" />
 </head>
 <body class="home-page student-app">
     <header class="header student-app-header">
