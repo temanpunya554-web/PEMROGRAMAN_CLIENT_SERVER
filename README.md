@@ -106,6 +106,7 @@ Catatan: database versi awal belum menghubungkan data absensi biometrik `class_a
 - `Koneksi/Save_Teacher_Course_Assignment.php` menerima POST dari admin dengan token CSRF, `dosen_username`, dan `schedule_ids[]`. Kirim `clear_assignments=1` tanpa daftar jadwal untuk menghapus seluruh jadwal dosen tersebut. Endpoint ini belum dihubungkan ke form dashboard admin; penugasan melalui UI masih dilakukan dengan mengisi `dosen_course_assignments`.
 - Jalankan `Koneksi/Migration_Student_Leave_Requests.sql` setelah `Setup_Database.sql` dan `Migration_Attendance_Schedule.sql` untuk menyiapkan penyimpanan permohonan Izin/Sakit per mahasiswa, jadwal, dan tanggal. Form dan endpoint pengajuan belum tersedia.
 - `Koneksi/Record_Attendance.php` adalah helper untuk jadwal aktif tertentu. Alur absensi yang berjalan tetap memakai validasi biometrik/lokasi dan pencatatan di `Koneksi/Room.php`; helper ini hanya boleh dipanggil setelah bukti tersebut tervalidasi.
+- Mode uji radius sementara diaktifkan melalui `ATTENDANCE_TEST_MODE` pada `Koneksi/Room.php`. Mode ini mengabaikan hari/jam jadwal, tetapi tetap memerlukan ruangan terbuka, GPS aktual di dalam radius, dan verifikasi biometrik. Nonaktifkan dengan mengubah nilainya ke `false` setelah pengujian.
 
 ## Catatan verifikasi biometrik pada tahap pengembangan
 

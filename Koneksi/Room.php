@@ -6,6 +6,7 @@ session_start();
 date_default_timezone_set("Asia/Makassar");
 // Absensi dibuka sekian menit sebelum kelas dimulai dan ditutup saat kelas selesai.
 const ATTENDANCE_OPEN_MINUTES_BEFORE = 15;
+const ATTENDANCE_TEST_MODE = true;
 
 function roomRespond($statusCode, $success, $message, $extra = [])
 {
@@ -44,9 +45,9 @@ function scheduleDayName($timestamp)
 }
 
 /**
- * Jadwal yang sedang bisa diabsen pada waktu $timestamp: hari sama, jam sekarang
- * berada antara (StartTime - toleransi) dan EndTime. Jadwal tanpa jam (NULL) tidak ikut.
- * Bila $roomName diberikan, hasil dibatasi pada ruangan itu.
+ * In test mode, returns every schedule, including entries without a time.
+ * Otherwise, returns schedules within the normal attendance window.
+ * If $roomName is provided, results are limited to that room.
  */
 function findActiveSchedules($conn, $timestamp, $roomName = null)
 {
@@ -56,12 +57,19 @@ function findActiveSchedules($conn, $timestamp, $roomName = null)
         ? date("H:i:s", $timestamp + ATTENDANCE_OPEN_MINUTES_BEFORE * 60)
         : "23:59:59";
 
-    $sql = "SELECT `Id`, `CourseName`, `RoomName`, `StartTime`, `EndTime`, `ScheduleType`
+    $sql = "SELECT `Id`, `CourseName`, `RoomName`, `StartTime`, `EndTime`, `ScheduleType`, `DayName`
             FROM `class_schedules`
-            WHERE `DayName` = ? AND `StartTime` IS NOT NULL AND `EndTime` IS NOT NULL
-              AND `StartTime` <= ? AND `EndTime` >= ?";
-    $types = "sss";
-    $params = [$day, $windowEnd, $now];
+            WHERE 1 = 1";
+    $types = "";
+    $params = [];
+    if (!ATTENDANCE_TEST_MODE) {
+        $sql .= " AND `DayName` = ? AND `StartTime` IS NOT NULL AND `EndTime` IS NOT NULL
+                  AND `StartTime` <= ? AND `EndTime` >= ?";
+        $types .= "sss";
+        $params[] = $day;
+        $params[] = $windowEnd;
+        $params[] = $now;
+    }
     if ($roomName !== null) {
         $sql .= " AND TRIM(`RoomName`) = TRIM(?)";
         $types .= "s";
@@ -70,7 +78,9 @@ function findActiveSchedules($conn, $timestamp, $roomName = null)
     $sql .= " ORDER BY `StartTime`, `CourseName`";
 
     $statement = mysqli_prepare($conn, $sql);
-    mysqli_stmt_bind_param($statement, $types, ...$params);
+    if ($params) {
+        mysqli_stmt_bind_param($statement, $types, ...$params);
+    }
     mysqli_stmt_execute($statement);
     $result = mysqli_stmt_get_result($statement);
     $rows = mysqli_fetch_all($result, MYSQLI_ASSOC);
@@ -112,6 +122,7 @@ try {
             "schedules" => findActiveSchedules($conn, $nowTs),
             "server_time" => date("Y-m-d H:i:s", $nowTs),
             "open_minutes_before" => ATTENDANCE_OPEN_MINUTES_BEFORE,
+            "test_mode" => ATTENDANCE_TEST_MODE,
         ]);
     }
 
@@ -193,6 +204,9 @@ try {
             }
         }
         if ($activeSchedule === null) {
+            if (ATTENDANCE_TEST_MODE) {
+                roomRespond(403, false, "Jadwal tersebut tidak terdaftar di ruangan ini.");
+            }
             roomRespond(403, false, "Mata kuliah tersebut tidak sedang berlangsung di ruangan ini. Absensi dibuka " . ATTENDANCE_OPEN_MINUTES_BEFORE . " menit sebelum kelas dimulai sampai kelas selesai.");
         }
         $attScheduleCol = mysqli_query($conn, "SHOW COLUMNS FROM `class_attendance` LIKE 'ScheduleId'");
@@ -244,14 +258,29 @@ try {
             roomRespond(403, false, "Akses ditolak. Ruangan sedang dikunci.");
         }
 
+        if (
+            (ATTENDANCE_TEST_MODE && !$roomHasGeofence) ||
+            ($roomHasGeofence && (
+                !is_numeric($roomLat) || !is_numeric($roomLon) ||
+                (float) $roomLat < -90 || (float) $roomLat > 90 ||
+                (float) $roomLon < -180 || (float) $roomLon > 180
+            ))
+        ) {
+            roomRespond(409, false, "Koordinat dan radius ruangan belum dikonfigurasi dengan benar. Periksa geofence ruangan.");
+        }
+
         // Validasi Lokasi (Geofencing)
         $userLat = isset($_POST["user_latitude"]) && is_numeric($_POST["user_latitude"]) ? (float) $_POST["user_latitude"] : null;
         $userLon = isset($_POST["user_longitude"]) && is_numeric($_POST["user_longitude"]) ? (float) $_POST["user_longitude"] : null;
         $distance = null;
 
         if ($roomHasGeofence) {
-            if ($userLat === null || $userLon === null) {
-                roomRespond(400, false, "Lokasi GPS wajib diaktifkan dan dikirim untuk absensi ruangan ini.");
+            if (
+                $userLat === null || $userLon === null ||
+                $userLat < -90 || $userLat > 90 ||
+                $userLon < -180 || $userLon > 180
+            ) {
+                roomRespond(400, false, "Koordinat GPS tidak valid. Izinkan akses lokasi dan coba lagi.");
             }
             $distance = haversineDistance($userLat, $userLon, $roomLat, $roomLon);
             $maxRadius = (int) ($radiusMeters > 0 ? $radiusMeters : 100);

@@ -6,11 +6,12 @@ require __DIR__ . "/Student_Header.php";
 <section class="student-page-heading">
     <p class="home-eyebrow">ABSENSI MAHASISWA</p>
     <h1>Verifikasi masuk ruangan</h1>
-    <p>Pilih ruangan, pastikan mata kuliah yang sedang berlangsung sudah benar, lalu ikuti verifikasi lokasi (geofencing) dan biometrik untuk mencatat kehadiran.</p>
+    <p>Pilih ruangan dan jadwal mata kuliah, lalu ikuti verifikasi lokasi (geofencing) dan biometrik untuk mencatat kehadiran.</p>
 </section>
 
 <section class="student-content-panel">
     <div id="network-status-banner" class="network-status-banner" hidden></div>
+    <p id="attendance-test-mode-notice" class="form-help" role="status" hidden></p>
     <p id="verification-status" class="community-data-status" role="status">Memuat status ruangan...</p>
 
     <div class="verification-layout">
@@ -20,7 +21,7 @@ require __DIR__ . "/Student_Header.php";
                 <option value="">Memuat ruangan...</option>
             </select>
 
-            <label for="schedule-select">Mata kuliah yang sedang berlangsung</label>
+            <label for="schedule-select">Jadwal mata kuliah</label>
             <select id="schedule-select" disabled>
                 <option value="">Pilih ruangan terlebih dahulu</option>
             </select>
@@ -37,10 +38,6 @@ require __DIR__ . "/Student_Header.php";
                     <span id="gps-badge" class="gps-badge gps-badge-pending">Belum diperiksa</span>
                 </div>
                 <div id="gps-details">Menunggu penentuan titik koordinat...</div>
-                <label class="gps-simulation-toggle" title="Gunakan mode uji coba jika menguji di PC/laptop tanpa sensor GPS">
-                    <input type="checkbox" id="gps-simulate-checkbox" />
-                    <span>Mode Uji Coba: Simulasikan berada di dalam ruangan kelas</span>
-                </label>
             </div>
 
             <!-- TAHAP 2: FINGERPRINT -->
@@ -84,12 +81,12 @@ require __DIR__ . "/Student_Header.php";
     const roomSelect = document.getElementById("room-select");
     const scheduleSelect = document.getElementById("schedule-select");
     const scheduleHint = document.getElementById("schedule-hint");
+    const attendanceTestModeNotice = document.getElementById("attendance-test-mode-notice");
     const verificationStatus = document.getElementById("verification-status");
     const gpsButton = document.getElementById("gps-button");
     const gpsInfoBox = document.getElementById("gps-info-box");
     const gpsBadge = document.getElementById("gps-badge");
     const gpsDetails = document.getElementById("gps-details");
-    const gpsSimulateCheckbox = document.getElementById("gps-simulate-checkbox");
     const fingerprintButton = document.getElementById("fingerprint-button");
     const faceButton = document.getElementById("face-button");
     const enterRoomButton = document.getElementById("enter-room-button");
@@ -99,7 +96,9 @@ require __DIR__ . "/Student_Header.php";
 
     let roomsData = [];
     let activeSchedules = [];
+    let scheduleLoadError = "";
     let openMinutesBefore = 15;
+    let attendanceTestMode = false;
     let currentRoom = null;
     let gpsVerified = false;
     let userCoords = { latitude: null, longitude: null };
@@ -209,9 +208,18 @@ require __DIR__ . "/Student_Header.php";
             const result = await response.json();
             if (!response.ok || !result.success) throw new Error(result.message);
             activeSchedules = result.schedules || [];
+            scheduleLoadError = "";
             openMinutesBefore = result.open_minutes_before || openMinutesBefore;
+            attendanceTestMode = result.test_mode === true;
+            attendanceTestModeNotice.hidden = !attendanceTestMode;
+            attendanceTestModeNotice.textContent = attendanceTestMode
+                ? "MODE UJI COBA AKTIF: absensi dapat dilakukan kapan saja untuk jadwal terdaftar. Ruangan harus tetap terbuka, dan GPS, radius, serta verifikasi biometrik tetap diperiksa."
+                : "";
         } catch (error) {
             activeSchedules = [];
+            scheduleLoadError = error.message || "Periksa koneksi dan sesi login.";
+            attendanceTestMode = false;
+            attendanceTestModeNotice.hidden = true;
         }
         // Jangan mengubah pilihan saat mahasiswa sudah di tengah verifikasi.
         if (!gpsVerified) renderScheduleOptions();
@@ -229,25 +237,37 @@ require __DIR__ . "/Student_Header.php";
             return;
         }
 
+        if (scheduleLoadError) {
+            scheduleSelect.add(new Option("Jadwal gagal dimuat", ""));
+            scheduleSelect.disabled = true;
+            scheduleHint.textContent = `Jadwal mata kuliah tidak dapat dimuat: ${scheduleLoadError}`;
+            return;
+        }
+
         const matches = activeSchedules.filter(item => String(item.RoomName).trim().toLowerCase() === roomName.trim().toLowerCase());
         if (matches.length === 0) {
-            scheduleSelect.add(new Option("Tidak ada kelas berlangsung", ""));
+            scheduleSelect.add(new Option(attendanceTestMode ? "Tidak ada jadwal terdaftar" : "Tidak ada kelas berlangsung", ""));
             scheduleSelect.disabled = true;
-            scheduleHint.textContent = `Tidak ada mata kuliah di ${roomName} saat ini. Absensi dibuka ${openMinutesBefore} menit sebelum kelas dimulai sampai kelas selesai.`;
+            scheduleHint.textContent = attendanceTestMode
+                ? `Belum ada jadwal mata kuliah yang terdaftar di ${roomName}.`
+                : `Tidak ada mata kuliah di ${roomName} saat ini. Absensi dibuka ${openMinutesBefore} menit sebelum kelas dimulai sampai kelas selesai.`;
         } else {
-            if (matches.length > 1) scheduleSelect.add(new Option("Pilih mata kuliah", ""));
+            if (matches.length > 1 || attendanceTestMode) scheduleSelect.add(new Option("Pilih mata kuliah", ""));
             matches.forEach(item => {
-                scheduleSelect.add(new Option(`${item.CourseName} (${formatClock(item.StartTime)}-${formatClock(item.EndTime)})`, item.Id));
+                const day = attendanceTestMode ? `${item.DayName} · ` : "";
+                scheduleSelect.add(new Option(`${day}${item.CourseName} (${formatClock(item.StartTime)}-${formatClock(item.EndTime)})`, item.Id));
             });
-            scheduleSelect.disabled = matches.length === 1;
+            scheduleSelect.disabled = !attendanceTestMode && matches.length === 1;
             if (matches.some(item => String(item.Id) === previous)) {
                 scheduleSelect.value = previous;
-            } else if (matches.length === 1) {
+            } else if (matches.length === 1 && !attendanceTestMode) {
                 scheduleSelect.value = String(matches[0].Id);
             }
-            scheduleHint.textContent = matches.length === 1
-                ? "Mata kuliah dipilih otomatis sesuai jadwal ruangan ini."
-                : "Ada lebih dari satu kelas di ruangan ini. Pilih mata kuliah Anda.";
+            scheduleHint.textContent = attendanceTestMode
+                ? "Pilih jadwal terdaftar untuk uji radius lokasi; hari dan jam jadwal tidak membatasi absensi dalam mode uji coba."
+                : matches.length === 1
+                    ? "Mata kuliah dipilih otomatis sesuai jadwal ruangan ini."
+                    : "Ada lebih dari satu kelas di ruangan ini. Pilih mata kuliah Anda.";
         }
         gpsButton.disabled = !(roomSelect.value && scheduleSelect.value) || gpsVerified;
     }
@@ -292,20 +312,21 @@ require __DIR__ . "/Student_Header.php";
         gpsBadge.className = "gps-badge gps-badge-pending";
         gpsDetails.textContent = "Meminta koordinat GPS perangkat...";
 
-        const targetLat = currentRoom.Latitude !== undefined && currentRoom.Latitude !== null ? parseFloat(currentRoom.Latitude) : -6.2000000;
-        const targetLon = currentRoom.Longitude !== undefined && currentRoom.Longitude !== null ? parseFloat(currentRoom.Longitude) : 106.8166667;
+        const hasRoomCoordinates = currentRoom.Latitude !== undefined && currentRoom.Latitude !== null &&
+            String(currentRoom.Latitude).trim() !== "" &&
+            currentRoom.Longitude !== undefined && currentRoom.Longitude !== null &&
+            String(currentRoom.Longitude).trim() !== "";
+        const targetLat = Number(currentRoom.Latitude);
+        const targetLon = Number(currentRoom.Longitude);
         const maxRadius = currentRoom.RadiusMeters ? parseInt(currentRoom.RadiusMeters, 10) : 100;
 
-        // Opsi simulasi / testing
-        if (gpsSimulateCheckbox.checked) {
-            userCoords.latitude = targetLat;
-            userCoords.longitude = targetLon;
-            gpsVerified = true;
-            gpsBadge.textContent = "Di dalam radius (Simulasi) ✅";
-            gpsBadge.className = "gps-badge gps-badge-in-range";
-            gpsDetails.innerHTML = `Mode Uji Coba: Koordinat disesuaikan (${targetLat.toFixed(6)}, ${targetLon.toFixed(6)}). Jarak terukur: <strong>0 meter</strong> (Maks: ${maxRadius}m).`;
-            fingerprintButton.disabled = false;
-            verificationStatus.textContent = "Lokasi terverifikasi. Lanjutkan ke Tahap 2: Verifikasi Sidik Jari.";
+        if (!hasRoomCoordinates || !Number.isFinite(targetLat) || !Number.isFinite(targetLon) ||
+            targetLat < -90 || targetLat > 90 || targetLon < -180 || targetLon > 180) {
+            gpsVerified = false;
+            gpsBadge.textContent = "Lokasi ruangan belum diatur ❌";
+            gpsBadge.className = "gps-badge gps-badge-out-range";
+            gpsDetails.textContent = "Koordinat ruangan belum dikonfigurasi. Minta dosen atau admin mengatur geofence ruangan.";
+            fingerprintButton.disabled = true;
             return;
         }
 
@@ -342,17 +363,11 @@ require __DIR__ . "/Student_Header.php";
                 gpsVerified = false;
                 gpsBadge.textContent = "Izin Ditolak / Gagal ❌";
                 gpsBadge.className = "gps-badge gps-badge-out-range";
-                gpsDetails.innerHTML = `Tidak dapat membaca GPS (${err.message}). Pastikan izin lokasi aktif atau centang Mode Uji Coba di bawah.`;
+                gpsDetails.innerHTML = `Tidak dapat membaca GPS (${err.message}). Pastikan izin lokasi browser aktif.`;
                 fingerprintButton.disabled = true;
             },
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
-    });
-
-    gpsSimulateCheckbox.addEventListener("change", () => {
-        if (!gpsButton.disabled) {
-            gpsButton.click();
-        }
     });
 
     // --- TAHAP 2: SIDIK JARI ---
