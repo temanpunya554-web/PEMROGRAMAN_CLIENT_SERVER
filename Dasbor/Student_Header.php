@@ -5,6 +5,7 @@ $studentPageTitles = [
     "profile" => "Profil",
     "biometrics" => "Biometrik",
     "history" => "Riwayat",
+    "leave" => "Izin / Sakit", // [TAMBAHAN CLAUDE] poin d
 ];
 $studentPageLinks = [
     "home" => ["Beranda.php", "Beranda"],
@@ -12,6 +13,7 @@ $studentPageLinks = [
     "profile" => ["Profil.php", "Profil"],
     "biometrics" => ["Biometrik.php", "Biometrik"],
     "history" => ["Riwayat.php", "Riwayat"],
+    "leave" => ["Izin.php", "Izin / Sakit"], // [TAMBAHAN CLAUDE] poin d
 ];
 ?>
 <!DOCTYPE html>

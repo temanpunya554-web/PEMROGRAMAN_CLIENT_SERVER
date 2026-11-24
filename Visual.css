@@ -2010,7 +2010,6 @@ body {
     grid-template-columns: 1fr;
   }
 }
-
 /* Menu dosen: mengikuti pola menu mahasiswa */
 .dosen-history-filters {
   grid-template-columns: minmax(0, 1fr) auto auto;

@@ -5,6 +5,7 @@ $dosenPageTitles = [
     "history" => "Riwayat Kehadiran",
     "attendance" => "Kelola Kehadiran",
     "profile" => "Profil Dosen",
+    "leave" => "Pengajuan Izin / Sakit", // [TAMBAHAN CLAUDE] poin d
 ];
 $dosenPageLinks = [
     "rooms" => ["Dosen.php", "Ruangan"],
@@ -12,6 +13,7 @@ $dosenPageLinks = [
     "history" => ["Dosen_Riwayat.php", "Riwayat"],
     "attendance" => ["Dosen_Kehadiran.php", "Kelola Kehadiran"],
     "profile" => ["Dosen_Profil.php", "Profil"],
+    "leave" => ["Dosen_Izin.php", "Izin / Sakit"], // [TAMBAHAN CLAUDE] poin d
 ];
 ?>
 <!DOCTYPE html>

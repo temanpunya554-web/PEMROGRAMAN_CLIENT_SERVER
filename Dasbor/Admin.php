@@ -170,6 +170,42 @@ try {
     foreach ($rooms as $room) {
         $roomCounts[$room["RoomStatus"] === "open" ? "Terbuka" : "Terkunci"]++;
     }
+    // [TAMBAHAN CLAUDE] Poin c: data untuk form penugasan dosen
+    $assignReady = false;
+    $assignDosenList = [];
+    $assignScheduleList = [];
+    $assignMap = [];
+    try {
+        $assignReady = mysqli_num_rows(mysqli_query($conn, "SHOW TABLES LIKE 'dosen_course_assignments'")) === 1;
+        if ($assignReady) {
+            $assignDosenList = mysqli_fetch_all(mysqli_query(
+                $conn,
+                "SELECT l.`Username`, COALESCE(NULLIF(p.`FullName`, ''), l.`Username`) AS `FullName`
+                 FROM `login` AS l
+                 LEFT JOIN `dosen_profiles` AS p ON p.`Username` = l.`Username`
+                 WHERE l.`Role` = 'dosen'
+                 ORDER BY `FullName`"
+            ), MYSQLI_ASSOC);
+            $assignScheduleList = mysqli_fetch_all(mysqli_query(
+                $conn,
+                "SELECT `Id`, `DayName`, `CourseName`, `StartTime`, `EndTime`, `RoomName`
+                 FROM `class_schedules`
+                 ORDER BY FIELD(`DayName`, 'Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'),
+                          `StartTime` IS NULL, `StartTime`, `Id`"
+            ), MYSQLI_ASSOC);
+            $assignRows = mysqli_fetch_all(mysqli_query(
+                $conn,
+                "SELECT `DosenUsername`, `ScheduleId` FROM `dosen_course_assignments`"
+            ), MYSQLI_ASSOC);
+            foreach ($assignRows as $assignRow) {
+                $assignMap[$assignRow["DosenUsername"]][] = (int) $assignRow["ScheduleId"];
+            }
+        }
+    } catch (Throwable $assignError) {
+        error_log("Admin assignment data error: " . $assignError->getMessage());
+        $assignReady = false;
+    }
+    // [/TAMBAHAN CLAUDE]
 } catch (Throwable $error) {
     error_log("Admin attendance dashboard error: " . $error->getMessage());
     http_response_code(500);
@@ -251,6 +287,7 @@ function renderPercentList($counts)
         <a href="#ringkasan">Ringkasan</a>
         <a href="#persentase">Persentase</a>
         <a href="#data-akun">Data Akun</a>
+        <a href="#penugasan-dosen">Penugasan Dosen</a> <!-- [TAMBAHAN CLAUDE] poin c -->
         <a href="#ruangan">Ruangan</a>
         <a href="#absensi">Absensi</a>
         <a href="#pesan-bantuan">Pesan & Bantuan <span id="admin-nav-chat-badge" class="nav-chat-badge" hidden>0</span></a>
@@ -366,6 +403,50 @@ function renderPercentList($counts)
             </table>
         </div>
     </section>
+
+    <!-- [TAMBAHAN CLAUDE] Poin c: penugasan dosen ke jadwal/mata kuliah -->
+    <section class="admin-panel" id="penugasan-dosen">
+        <div class="admin-panel-heading">
+            <div>
+                <p class="home-eyebrow">PENGAMPU MATA KULIAH</p>
+                <h2>Penugasan Dosen</h2>
+            </div>
+        </div>
+        <?php if (!$assignReady): ?>
+            <p class="admin-empty">Tabel penugasan belum tersedia. Jalankan <code>Koneksi/Migration_Teacher_Course_Assignment.sql</code> terlebih dahulu.</p>
+        <?php elseif (!$assignDosenList || !$assignScheduleList): ?>
+            <p class="admin-empty">Belum ada akun dosen atau jadwal kuliah yang bisa ditugaskan.</p>
+        <?php else: ?>
+            <form id="assign-form" class="student-profile-form" novalidate>
+                <label for="assign-dosen">Pilih dosen
+                    <select id="assign-dosen">
+                        <?php foreach ($assignDosenList as $assignDosen): ?>
+                            <option value="<?= escapeHtml($assignDosen["Username"]) ?>"><?= escapeHtml($assignDosen["FullName"] . " (" . $assignDosen["Username"] . ")") ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+                <p class="admin-muted">Centang jadwal yang diampu dosen ini. Menyimpan akan menggantikan seluruh penugasan lama dosen tersebut.</p>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;margin:12px 0">
+                    <?php foreach ($assignScheduleList as $assignSchedule): ?>
+                        <label style="display:flex;gap:8px;align-items:flex-start;font-weight:normal">
+                            <input type="checkbox" name="schedule_ids[]" value="<?= (int) $assignSchedule["Id"] ?>" style="width:auto;margin-top:4px" />
+                            <span>
+                                <strong><?= escapeHtml($assignSchedule["CourseName"]) ?></strong><br />
+                                <small><?= escapeHtml($assignSchedule["DayName"]) ?> &middot;
+                                    <?= $assignSchedule["StartTime"] && $assignSchedule["EndTime"]
+                                        ? escapeHtml(substr($assignSchedule["StartTime"], 0, 5) . "-" . substr($assignSchedule["EndTime"], 0, 5))
+                                        : "waktu menyusul" ?>
+                                    &middot; <?= escapeHtml($assignSchedule["RoomName"]) ?></small>
+                            </span>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+                <p id="assign-status" class="admin-status" role="status"></p>
+                <button type="submit" class="home-button" id="assign-save">Simpan penugasan</button>
+            </form>
+        <?php endif; ?>
+    </section>
+    <!-- [/TAMBAHAN CLAUDE] -->
 
     <section class="admin-panel" id="ruangan">
         <div class="admin-panel-heading">
@@ -705,6 +786,60 @@ function renderPercentList($counts)
         loadRows();
     })();
 </script>
+
+<?php if ($assignReady && $assignDosenList && $assignScheduleList): ?>
+<!-- [TAMBAHAN CLAUDE] Poin c: skrip form penugasan dosen -->
+<script>
+(() => {
+    const form = document.getElementById("assign-form");
+    const dosenSelect = document.getElementById("assign-dosen");
+    const statusLine = document.getElementById("assign-status");
+    const saveButton = document.getElementById("assign-save");
+    const checkboxes = Array.from(form.querySelectorAll('input[name="schedule_ids[]"]'));
+    const assignmentMap = <?= json_encode($assignMap, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_FORCE_OBJECT) ?>;
+    const assignCsrf = <?= json_encode($adminCsrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+
+    function applySelection() {
+        const assigned = (assignmentMap[dosenSelect.value] || []).map(String);
+        checkboxes.forEach((box) => { box.checked = assigned.includes(box.value); });
+        statusLine.textContent = "";
+    }
+
+    dosenSelect.addEventListener("change", applySelection);
+    applySelection();
+
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const chosen = checkboxes.filter((box) => box.checked).map((box) => box.value);
+        const body = new FormData();
+        body.set("csrf_token", assignCsrf);
+        body.set("dosen_username", dosenSelect.value);
+        if (chosen.length === 0) {
+            body.set("clear_assignments", "1");
+        } else {
+            chosen.forEach((id) => body.append("schedule_ids[]", id));
+        }
+        saveButton.disabled = true;
+        statusLine.textContent = "Menyimpan...";
+        try {
+            const response = await fetch("../Koneksi/Save_Teacher_Course_Assignment.php", {
+                method: "POST", body, headers: { Accept: "application/json" }
+            });
+            const result = await response.json();
+            statusLine.textContent = result.message || (response.ok ? "Tersimpan." : "Gagal menyimpan.");
+            if (response.ok && result.success) {
+                assignmentMap[dosenSelect.value] = chosen.map(Number);
+            }
+        } catch (error) {
+            statusLine.textContent = "Tidak dapat terhubung ke server.";
+        } finally {
+            saveButton.disabled = false;
+        }
+    });
+})();
+</script>
+<!-- [/TAMBAHAN CLAUDE] -->
+<?php endif; ?>
 
 <script>
 (function() {

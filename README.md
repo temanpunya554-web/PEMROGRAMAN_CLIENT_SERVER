@@ -126,3 +126,9 @@ Alur absensi saat ini mewajibkan urutan geofencing, langkah sidik jari, lalu kam
 2. Mahasiswa dan Dosen memiliki tombol mengambang (*floating action button*) **💬 Chat Admin** di sudut kanan bawah seluruh halaman dashboard mereka.
 3. Pesan yang dikirim pengguna masuk ke antrean admin secara instan dengan indikator status operator dan riwayat chat interaktif.
 4. Admin (Operator) dapat mengelola seluruh percakapan masuk di dashboard **Admin > Menu Pesan & Bantuan** (`#pesan-bantuan`), melihat daftar pengguna, membalas pesan, dan melihat jumlah notifikasi pesan yang belum terbaca secara live.
+
+## [TAMBAHAN CLAUDE] Penugasan dosen (UI admin) dan pengajuan izin/sakit
+
+- **Admin > Penugasan Dosen** (`Dasbor/Admin.php`, menu `#penugasan-dosen`): pilih dosen, centang jadwal yang diampu, lalu simpan. Form memakai endpoint `Koneksi/Save_Teacher_Course_Assignment.php`; menyimpan menggantikan seluruh penugasan lama dosen tersebut. Perlu `Koneksi/Migration_Teacher_Course_Assignment.sql`.
+- **Mahasiswa > Izin / Sakit** (`Dasbor/Izin.php`): ajukan Izin atau Sakit untuk satu jadwal dan tanggal (hari harus sesuai jadwal, rentang 7 hari lalu s/d 30 hari ke depan). Pengajuan yang masih Menunggu bisa diubah atau dibatalkan. Perlu `Koneksi/Migration_Student_Leave_Requests.sql`. Lampiran file belum didukung.
+- **Dosen > Izin / Sakit** (`Dasbor/Dosen_Izin.php`): dosen menyetujui atau menolak pengajuan untuk jadwal yang ditugaskan kepadanya. Jika disetujui, status Izin/Sakit dicatat ke `course_attendance`; status `Hadir` yang sudah ada tidak ditimpa.

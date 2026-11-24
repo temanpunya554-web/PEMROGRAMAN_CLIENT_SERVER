@@ -59,20 +59,20 @@ try {
             }
 
             // Tandai pesan dari pengguna ke admin sebagai telah dibaca
-            $markRead = mysqli_prepare($conn, "UPDATE `admin_chats` SET `IsRead` = 1 WHERE `SenderUsername` = ? AND `ReceiverUsername` = 'admin' AND `SenderRole` <> 'admin' AND `IsRead` = 0");
+            $markRead = mysqli_prepare($conn, "UPDATE `admin_chats` SET `IsRead` = 1 WHERE `SenderUsername` = ? AND `ReceiverUsername` = 'admin' AND `IsRead` = 0");
             mysqli_stmt_bind_param($markRead, "s", $targetUser);
             mysqli_stmt_execute($markRead);
             mysqli_stmt_close($markRead);
 
             $stmt = mysqli_prepare($conn, "SELECT `Id`, `SenderUsername`, `ReceiverUsername`, `SenderRole`, `Message`, `IsRead`, `CreatedAt`
                 FROM `admin_chats`
-                WHERE (`SenderUsername` = ? AND `ReceiverUsername` = 'admin' AND `SenderRole` <> 'admin')
-                   OR (`SenderRole` = 'admin' AND `ReceiverUsername` = ?)
+                WHERE (`SenderUsername` = ? AND `ReceiverUsername` = 'admin')
+                   OR (`SenderUsername` = 'admin' AND `ReceiverUsername` = ?)
                 ORDER BY `CreatedAt` ASC, `Id` ASC");
             mysqli_stmt_bind_param($stmt, "ss", $targetUser, $targetUser);
         } else {
             // Mahasiswa atau Dosen chat dengan admin
-            $markRead = mysqli_prepare($conn, "UPDATE `admin_chats` SET `IsRead` = 1 WHERE `SenderRole` = 'admin' AND `ReceiverUsername` = ? AND `IsRead` = 0");
+            $markRead = mysqli_prepare($conn, "UPDATE `admin_chats` SET `IsRead` = 1 WHERE `SenderUsername` = 'admin' AND `ReceiverUsername` = ? AND `IsRead` = 0");
             mysqli_stmt_bind_param($markRead, "s", $username);
             mysqli_stmt_execute($markRead);
             mysqli_stmt_close($markRead);
@@ -80,7 +80,7 @@ try {
             $stmt = mysqli_prepare($conn, "SELECT `Id`, `SenderUsername`, `ReceiverUsername`, `SenderRole`, `Message`, `IsRead`, `CreatedAt`
                 FROM `admin_chats`
                 WHERE (`SenderUsername` = ? AND `ReceiverUsername` = 'admin')
-                   OR (`SenderRole` = 'admin' AND `ReceiverUsername` = ?)
+                   OR (`SenderUsername` = 'admin' AND `ReceiverUsername` = ?)
                 ORDER BY `CreatedAt` ASC, `Id` ASC");
             mysqli_stmt_bind_param($stmt, "ss", $username, $username);
         }
@@ -106,31 +106,28 @@ try {
                          last_chat.CreatedAt AS LastMessageTime,
                          COALESCE(unread.UnreadCount, 0) AS UnreadCount
                   FROM (
-                      SELECT DISTINCT `SenderUsername` AS Username
+                      SELECT DISTINCT IF(SenderUsername = 'admin', ReceiverUsername, SenderUsername) AS Username
                       FROM admin_chats
-                      WHERE ReceiverUsername = 'admin' AND SenderRole <> 'admin'
-                      UNION
-                      SELECT DISTINCT `ReceiverUsername` AS Username
-                      FROM admin_chats
-                      WHERE SenderRole = 'admin'
+                      WHERE SenderUsername = 'admin' OR ReceiverUsername = 'admin'
                   ) AS u
                   INNER JOIN `login` AS l ON l.Username = u.Username
                   LEFT JOIN `mahasiswa_profiles` AS mp ON mp.Username = u.Username
                   LEFT JOIN `dosen_profiles` AS dp ON dp.Username = u.Username
                   LEFT JOIN (
-                      SELECT CASE WHEN SenderRole = 'admin' THEN ReceiverUsername ELSE SenderUsername END AS ChatUser,
+                      SELECT IF(SenderUsername = 'admin', ReceiverUsername, SenderUsername) AS ChatUser,
                              Message, CreatedAt
                       FROM admin_chats
                       WHERE Id IN (
                           SELECT MAX(Id)
                           FROM admin_chats
-                          GROUP BY CASE WHEN SenderRole = 'admin' THEN ReceiverUsername ELSE SenderUsername END
+                          WHERE SenderUsername = 'admin' OR ReceiverUsername = 'admin'
+                          GROUP BY IF(SenderUsername = 'admin', ReceiverUsername, SenderUsername)
                       )
                   ) AS last_chat ON last_chat.ChatUser = u.Username
                   LEFT JOIN (
                       SELECT SenderUsername, COUNT(*) AS UnreadCount
                       FROM admin_chats
-                      WHERE ReceiverUsername = 'admin' AND SenderRole <> 'admin' AND IsRead = 0
+                      WHERE ReceiverUsername = 'admin' AND IsRead = 0
                       GROUP BY SenderUsername
                   ) AS unread ON unread.SenderUsername = u.Username
                   ORDER BY last_chat.CreatedAt DESC";
@@ -144,11 +141,11 @@ try {
     // 3. MENDAPATKAN JUMLAH PESAN BELUM TERBACA
     if ($action === "get_unread_count") {
         if ($userRole === "admin") {
-            $countStmt = mysqli_query($conn, "SELECT COUNT(*) AS total FROM `admin_chats` WHERE `ReceiverUsername` = 'admin' AND `SenderRole` <> 'admin' AND `IsRead` = 0");
+            $countStmt = mysqli_query($conn, "SELECT COUNT(*) AS total FROM `admin_chats` WHERE `ReceiverUsername` = 'admin' AND `IsRead` = 0");
             $row = mysqli_fetch_assoc($countStmt);
             $unreadCount = (int) ($row["total"] ?? 0);
         } else {
-            $stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM `admin_chats` WHERE `SenderRole` = 'admin' AND `ReceiverUsername` = ? AND `IsRead` = 0");
+            $stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM `admin_chats` WHERE `SenderUsername` = 'admin' AND `ReceiverUsername` = ? AND `IsRead` = 0");
             mysqli_stmt_bind_param($stmt, "s", $username);
             mysqli_stmt_execute($stmt);
             $res = mysqli_stmt_get_result($stmt);
