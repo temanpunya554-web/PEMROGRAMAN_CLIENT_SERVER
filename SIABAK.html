@@ -4,21 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SIABAK - Sistem Absensi Akademik</title>
-    <link rel="stylesheet" href="Visual.css?v=20261123-mobile" />
+    <link rel="stylesheet" href="Visual.css?v=20261124-siabak-refresh-4" />
   </head>
 
   <body class="home-page">
     <header class="header">
       <nav class="navbar">
         <a class="logo" href="#beranda" aria-label="Beranda">
-          <img src="Logo SIABAK Akademik Modern.png" alt="Logo" class="logo-image" />
-          <span>Sistem Absensi Kampus</span>
+          <img src="Logo SIABAK Akademik Modern.png" alt="SIABAK - Sistem Absensi Akademik" class="logo-image" />
+          <span>Portal Absensi</span>
         </a>
       
         <ul class="nav-menu">
           <li><a href="#beranda">Beranda</a></li>
           <li><a href="#fitur">Fitur</a></li>
-          <li><a href="#ruangan">Ruangan</a></li>
+          <li><a href="#ruangan">Alur Absensi</a></li>
         </ul>
 
         <div class="nav-actions">
@@ -35,29 +35,68 @@
       <section class="community-hero siakad-hero" id="beranda">
         <div class="home-container community-hero-inner">
           <div class="community-hero-copy">
-            <p class="home-eyebrow">SISTEM INFORMASI AKADEMIK</p>
-            <h1>Sistem Absensi Kampus Universitas</h1>
-            <p>Platform absensi akademik untuk mahasiswa, dosen, dan operator yang mendukung sidik jari serta pengenalan wajah.</p>
+            <p class="home-eyebrow">SIABAK <span aria-hidden="true">/</span> SISTEM ABSENSI AKADEMIK</p>
+            <h1>Kehadiran kampus,<br /><span>lebih mudah dan akurat.</span></h1>
+            <p>Kelola absensi dalam satu alur: pilih kelas, verifikasi lokasi dan biometrik, lalu catat kehadiran dengan rapi.</p>
             <div class="home-actions">
-              <button type="button" class="community-join-button siakad-primary" id="community-join-button">Masuk ke Layanan</button>
+              <button type="button" class="community-join-button siakad-primary" id="community-join-button">Mulai absensi <span aria-hidden="true">→</span></button>
               <a class="home-secondary-link siakad-outline" href="#fitur">Pelajari Selengkapnya</a>
             </div>
+            <div class="hero-benefits" aria-label="Fitur absensi">
+              <span><i aria-hidden="true">01</i> Validasi lokasi</span>
+              <span><i aria-hidden="true">02</i> Verifikasi biometrik</span>
+            </div>
           </div>
-          <aside class="community-hero-note">
-            <span class="community-note-mark" aria-hidden="true">A</span>
-            <p>Mahasiswa melakukan verifikasi, dosen mengatur akses ruangan, dan operator memantau data absensi.</p>
+          <aside class="attendance-visual" aria-label="Ringkasan alur absensi SIABAK">
+            <div class="attendance-visual-heading">
+              <div>
+                <p>SIABAK ATTENDANCE</p>
+                <h2>Satu alur, tiga lapis verifikasi</h2>
+              </div>
+              <span class="visual-shield" aria-hidden="true">✓</span>
+            </div>
+            <div class="attendance-orbit" aria-hidden="true">
+              <span class="orbit orbit-one"></span>
+              <span class="orbit orbit-two"></span>
+              <span class="orbit-center">S</span>
+              <span class="orbit-node orbit-node-top">GPS</span>
+              <span class="orbit-node orbit-node-right">BIO</span>
+              <span class="orbit-node orbit-node-bottom">HADIR</span>
+            </div>
+            <div class="attendance-visual-caption">
+              <span class="caption-line" aria-hidden="true"></span>
+              <p>Lokasi kelas <strong>·</strong> Biometrik <strong>·</strong> Catatan kehadiran</p>
+            </div>
           </aside>
         </div>
       </section>
 
-      <section class="home-section community-intro" id="fitur">
-        <div class="home-container home-info-layout">
-          <div class="home-section-heading">
-            <p class="home-eyebrow">LAYANAN AKADEMIK</p>
-            <h2>Absensi terintegrasi dengan akses ruangan.</h2>
+      <section class="home-feature-section" id="fitur">
+        <div class="home-container">
+          <div class="home-section-intro">
+            <p class="home-eyebrow">DIBUAT UNTUK AKTIVITAS KAMPUS</p>
+            <h2>Absensi yang tertib, dari kelas sampai rekap.</h2>
+            <p>Fitur yang saling terhubung membantu mahasiswa mencatat kehadiran dan memudahkan dosen mengelola akses kelas.</p>
           </div>
-          <div class="home-section-copy">
-            <p>Mahasiswa melakukan fingerprint dan pengenalan wajah, dosen mengatur status ruangan, dan operator memantau data akademik.</p>
+          <div class="feature-card-grid">
+            <article class="feature-card">
+              <span class="feature-card-index" aria-hidden="true">01</span>
+              <h3>Lokasi terverifikasi</h3>
+              <p>Pemeriksaan radius memastikan proses absensi sesuai titik lokasi ruangan yang ditetapkan.</p>
+              <span class="feature-card-tag">GEOFENCING</span>
+            </article>
+            <article class="feature-card">
+              <span class="feature-card-index" aria-hidden="true">02</span>
+              <h3>Verifikasi berlapis</h3>
+              <p>Alur absensi menggabungkan pemeriksaan lokasi dengan tahapan verifikasi biometrik.</p>
+              <span class="feature-card-tag">BIOMETRIK</span>
+            </article>
+            <article class="feature-card">
+              <span class="feature-card-index" aria-hidden="true">03</span>
+              <h3>Akses kelas terkelola</h3>
+              <p>Dosen dapat mengatur status ruangan, sementara operator memantau data akademik.</p>
+              <span class="feature-card-tag">KONTROL RUANGAN</span>
+            </article>
           </div>
         </div>
       </section>
@@ -66,15 +105,27 @@
         <div class="home-container">
           <div class="community-section-heading">
             <div>
-              <p class="home-eyebrow">ALUR ABSENSI</p>
-              <h2>Tiga tahap verifikasi</h2>
+              <p class="home-eyebrow">SINGKAT DAN TERARAH</p>
+              <h2>Mulai dari ruangan, berakhir di rekap kehadiran.</h2>
             </div>
-            <span class="community-section-number">01</span>
+            <span class="community-section-number">ALUR 01—03</span>
           </div>
           <div class="community-card-grid">
-            <article class="community-card"><h3>1. Pilih ruangan</h3><p>Mahasiswa memilih ruangan yang sedang terbuka.</p></article>
-            <article class="community-card"><h3>2. Verifikasi biometrik</h3><p>Mahasiswa menyelesaikan sidik jari dan pengenalan wajah.</p></article>
-            <article class="community-card"><h3>3. Catat kehadiran</h3><p>Jika ruangan terbuka, kehadiran dicatat ke sistem.</p></article>
+            <article class="community-card">
+              <span class="workflow-step">LANGKAH 01</span>
+              <h3>Pilih kelas</h3>
+              <p>Pilih ruangan dan mata kuliah sesuai jadwal yang tersedia.</p>
+            </article>
+            <article class="community-card">
+              <span class="workflow-step">LANGKAH 02</span>
+              <h3>Verifikasi diri</h3>
+              <p>Periksa lokasi dalam radius kelas, lalu ikuti tahapan biometrik.</p>
+            </article>
+            <article class="community-card">
+              <span class="workflow-step">LANGKAH 03</span>
+              <h3>Catat kehadiran</h3>
+              <p>Kehadiran tersimpan setelah seluruh pemeriksaan berhasil.</p>
+            </article>
           </div>
         </div>
       </section>
@@ -243,8 +294,8 @@
 
     <footer class="home-footer">
       <div class="home-container">
-        <span>Sistem Absensi Kampus</span>
-        <span>Fingerprint dan pengenalan wajah.</span>
+        <span class="footer-brand">SIABAK <span>·</span> Sistem Absensi Akademik</span>
+        <span>Presensi kampus yang terintegrasi.</span>
       </div>
     </footer>
 

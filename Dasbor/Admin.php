@@ -264,7 +264,7 @@ function renderPercentList($counts)
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dashboard Operator | Absensi Kampus</title>
-    <link rel="stylesheet" href="../Visual.css?v=20261123-chat-hidden-state" />
+    <link rel="stylesheet" href="../Visual.css?v=20261124-siabak-refresh-4" />
 </head>
 <body class="home-page student-app admin-app">
 <header class="header student-app-header">
