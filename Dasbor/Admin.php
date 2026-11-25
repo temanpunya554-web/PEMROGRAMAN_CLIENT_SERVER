@@ -264,7 +264,7 @@ function renderPercentList($counts)
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dashboard Operator | Absensi Kampus</title>
-    <link rel="stylesheet" href="../Visual.css?v=20261124-siabak-refresh-4" />
+    <link rel="stylesheet" href="../Visual.css?v=20261125-admin-dashboard-tabs" />
 </head>
 <body class="home-page student-app admin-app">
 <header class="header student-app-header">
@@ -294,93 +294,97 @@ function renderPercentList($counts)
     </nav>
     <div class="student-app-content admin-app-content">
       <div class="admin-dashboard home-container">
-    <section id="ringkasan" class="admin-heading">
-        <p class="home-eyebrow">PANEL OPERATOR</p>
-        <h1>Ringkasan sistem absensi</h1>
-        <p>Data akun Mahasiswa dan Dosen serta riwayat absensi biometrik.</p>
-    </section>
-
-    <section class="admin-stat-grid" aria-label="Ringkasan akun">
-        <article class="admin-stat-card admin-stat-total">
-            <p>Total akun terdaftar</p>
-            <strong><?= $totalUsers ?></strong>
-            <span>Mahasiswa dan dosen</span>
-        </article>
-        <article class="admin-stat-card">
-            <p>Mahasiswa</p>
-            <strong><?= $totalMahasiswa ?></strong>
-            <span><?= escapeHtml(formatPercent($totalMahasiswa, $totalUsers)) ?> dari total akun</span>
-        </article>
-        <article class="admin-stat-card">
-            <p>Dosen</p>
-            <strong><?= $totalDosen ?></strong>
-            <span><?= escapeHtml(formatPercent($totalDosen, $totalUsers)) ?> dari total akun</span>
-        </article>
-        <article class="admin-stat-card">
-            <p>Wajah terdaftar</p>
-            <strong><?= escapeHtml(formatPercent($faceEnrolled, $totalMahasiswa)) ?></strong>
-            <span><?= $faceEnrolled ?> dari <?= $totalMahasiswa ?> mahasiswa</span>
-        </article>
-    </section>
-
-    <section class="admin-panel" id="persentase">
-        <div class="admin-panel-heading">
-            <div>
-                <p class="home-eyebrow">PERSENTASE</p>
-                <h2>Jenis kelamin</h2>
-            </div>
-            <span><?= $totalUsers ?> akun</span>
+    <section id="ringkasan" class="admin-view-section">
+        <div class="admin-heading">
+            <p class="home-eyebrow">PANEL OPERATOR</p>
+            <h1>Ringkasan sistem absensi</h1>
+            <p>Data akun Mahasiswa dan Dosen serta riwayat absensi biometrik.</p>
         </div>
-        <?php if (!$dosenHasGender): ?>
-            <p class="admin-notice">
-                Data jenis kelamin Dosen belum tersedia. Import <code>Koneksi/Migration_Admin_Dosen_Gender.sql</code>
-                melalui phpMyAdmin, lalu isi lewat tabel Data Akun.
-            </p>
-        <?php endif; ?>
-        <div class="admin-percent-grid admin-percent-grid-3">
-            <div class="admin-percent-block">
-                <h3>Mahasiswa <span class="admin-muted">(<?= $totalMahasiswa ?>)</span></h3>
-                <?php renderPercentList($mahasiswaGender); ?>
-            </div>
-            <div class="admin-percent-block">
-                <h3>Dosen <span class="admin-muted">(<?= $totalDosen ?>)</span></h3>
-                <?php renderPercentList($dosenGender); ?>
-            </div>
-            <div class="admin-percent-block">
-                <h3>Gabungan <span class="admin-muted">(<?= $totalUsers ?>)</span></h3>
-                <?php renderPercentList($combinedGender); ?>
-            </div>
+
+        <div class="admin-stat-grid" aria-label="Ringkasan akun">
+            <article class="admin-stat-card admin-stat-total">
+                <p>Total akun terdaftar</p>
+                <strong><?= $totalUsers ?></strong>
+                <span>Mahasiswa dan dosen</span>
+            </article>
+            <article class="admin-stat-card">
+                <p>Mahasiswa</p>
+                <strong><?= $totalMahasiswa ?></strong>
+                <span><?= escapeHtml(formatPercent($totalMahasiswa, $totalUsers)) ?> dari total akun</span>
+            </article>
+            <article class="admin-stat-card">
+                <p>Dosen</p>
+                <strong><?= $totalDosen ?></strong>
+                <span><?= escapeHtml(formatPercent($totalDosen, $totalUsers)) ?> dari total akun</span>
+            </article>
+            <article class="admin-stat-card">
+                <p>Wajah terdaftar</p>
+                <strong><?= escapeHtml(formatPercent($faceEnrolled, $totalMahasiswa)) ?></strong>
+                <span><?= $faceEnrolled ?> dari <?= $totalMahasiswa ?> mahasiswa</span>
+            </article>
         </div>
     </section>
 
-    <section class="admin-panel">
-        <div class="admin-panel-heading">
-            <div>
-                <p class="home-eyebrow">PERSENTASE</p>
-                <h2>Profil mahasiswa dan ruangan</h2>
+    <section class="admin-view-section" id="persentase" aria-label="Persentase data">
+        <section class="admin-panel">
+            <div class="admin-panel-heading">
+                <div>
+                    <p class="home-eyebrow">PERSENTASE</p>
+                    <h2>Jenis kelamin</h2>
+                </div>
+                <span><?= $totalUsers ?> akun</span>
             </div>
-        </div>
-        <div class="admin-percent-grid">
-            <div class="admin-percent-block">
-                <h3>Kelompok usia mahasiswa</h3>
-                <?php renderPercentList($ageCounts); ?>
+            <?php if (!$dosenHasGender): ?>
+                <p class="admin-notice">
+                    Data jenis kelamin Dosen belum tersedia. Import <code>Koneksi/Migration_Admin_Dosen_Gender.sql</code>
+                    melalui phpMyAdmin, lalu isi lewat tabel Data Akun.
+                </p>
+            <?php endif; ?>
+            <div class="admin-percent-grid admin-percent-grid-3">
+                <div class="admin-percent-block">
+                    <h3>Mahasiswa <span class="admin-muted">(<?= $totalMahasiswa ?>)</span></h3>
+                    <?php renderPercentList($mahasiswaGender); ?>
+                </div>
+                <div class="admin-percent-block">
+                    <h3>Dosen <span class="admin-muted">(<?= $totalDosen ?>)</span></h3>
+                    <?php renderPercentList($dosenGender); ?>
+                </div>
+                <div class="admin-percent-block">
+                    <h3>Gabungan <span class="admin-muted">(<?= $totalUsers ?>)</span></h3>
+                    <?php renderPercentList($combinedGender); ?>
+                </div>
             </div>
-            <div class="admin-percent-block">
-                <h3>Provinsi asal mahasiswa</h3>
-                <?php renderPercentList($provinceCounts); ?>
+        </section>
+
+        <section class="admin-panel">
+            <div class="admin-panel-heading">
+                <div>
+                    <p class="home-eyebrow">PERSENTASE</p>
+                    <h2>Profil mahasiswa dan ruangan</h2>
+                </div>
             </div>
-            <div class="admin-percent-block">
-                <h3>Pendaftaran wajah</h3>
-                <?php renderPercentList($faceCounts); ?>
+            <div class="admin-percent-grid">
+                <div class="admin-percent-block">
+                    <h3>Kelompok usia mahasiswa</h3>
+                    <?php renderPercentList($ageCounts); ?>
+                </div>
+                <div class="admin-percent-block">
+                    <h3>Provinsi asal mahasiswa</h3>
+                    <?php renderPercentList($provinceCounts); ?>
+                </div>
+                <div class="admin-percent-block">
+                    <h3>Pendaftaran wajah</h3>
+                    <?php renderPercentList($faceCounts); ?>
+                </div>
+                <div class="admin-percent-block">
+                    <h3>Status ruangan</h3>
+                    <?php renderPercentList($roomCounts); ?>
+                </div>
             </div>
-            <div class="admin-percent-block">
-                <h3>Status ruangan</h3>
-                <?php renderPercentList($roomCounts); ?>
-            </div>
-        </div>
+        </section>
     </section>
 
-    <section class="admin-panel" id="data-akun">
+    <section class="admin-panel admin-view-section" id="data-akun">
         <div class="admin-panel-heading">
             <div>
                 <p class="home-eyebrow">KELOLA DATA</p>
@@ -405,7 +409,7 @@ function renderPercentList($counts)
     </section>
 
     <!-- [TAMBAHAN CLAUDE] Poin c: penugasan dosen ke jadwal/mata kuliah -->
-    <section class="admin-panel" id="penugasan-dosen">
+    <section class="admin-panel admin-view-section" id="penugasan-dosen">
         <div class="admin-panel-heading">
             <div>
                 <p class="home-eyebrow">PENGAMPU MATA KULIAH</p>
@@ -426,10 +430,10 @@ function renderPercentList($counts)
                     </select>
                 </label>
                 <p class="admin-muted">Centang jadwal yang diampu dosen ini. Menyimpan akan menggantikan seluruh penugasan lama dosen tersebut.</p>
-                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;margin:12px 0">
+                <div class="admin-assignment-grid">
                     <?php foreach ($assignScheduleList as $assignSchedule): ?>
-                        <label style="display:flex;gap:8px;align-items:flex-start;font-weight:normal">
-                            <input type="checkbox" name="schedule_ids[]" value="<?= (int) $assignSchedule["Id"] ?>" style="width:auto;margin-top:4px" />
+                        <label class="admin-assignment-option">
+                            <input type="checkbox" name="schedule_ids[]" value="<?= (int) $assignSchedule["Id"] ?>" />
                             <span>
                                 <strong><?= escapeHtml($assignSchedule["CourseName"]) ?></strong><br />
                                 <small><?= escapeHtml($assignSchedule["DayName"]) ?> &middot;
@@ -448,7 +452,7 @@ function renderPercentList($counts)
     </section>
     <!-- [/TAMBAHAN CLAUDE] -->
 
-    <section class="admin-panel" id="ruangan">
+    <section class="admin-panel admin-view-section" id="ruangan">
         <div class="admin-panel-heading">
             <div>
                 <p class="home-eyebrow">STATUS AKSES</p>
@@ -465,7 +469,7 @@ function renderPercentList($counts)
         </ul>
     </section>
 
-    <section class="admin-panel" id="absensi">
+    <section class="admin-panel admin-view-section" id="absensi">
         <div class="admin-panel-heading">
             <div>
                 <p class="home-eyebrow">RIWAYAT KEHADIRAN</p>
@@ -497,7 +501,7 @@ function renderPercentList($counts)
         <?php endif; ?>
     </section>
 
-    <section class="admin-panel" id="pesan-bantuan">
+    <section class="admin-panel admin-view-section" id="pesan-bantuan">
         <div class="admin-panel-heading">
             <div>
                 <p class="home-eyebrow">PUSAT BANTUAN & PESAN</p>
@@ -549,6 +553,49 @@ function renderPercentList($counts)
       </div>
     </div>
 </main>
+
+<script>
+(() => {
+    const navigation = document.querySelector(".admin-app-nav");
+    const views = Array.from(document.querySelectorAll(".admin-view-section"));
+    if (!navigation || views.length === 0) return;
+
+    const links = Array.from(navigation.querySelectorAll('a[href^="#"]'));
+
+    function showView(id) {
+        const activeView = views.find((view) => view.id === id) || views[0];
+        views.forEach((view) => {
+            view.hidden = view !== activeView;
+        });
+        links.forEach((link) => {
+            if (link.hash === `#${activeView.id}`) {
+                link.setAttribute("aria-current", "page");
+            } else {
+                link.removeAttribute("aria-current");
+            }
+        });
+    }
+
+    navigation.addEventListener("click", (event) => {
+        const link = event.target.closest('a[href^="#"]');
+        if (!link || !navigation.contains(link)) return;
+
+        const view = views.find((candidate) => candidate.id === link.hash.slice(1));
+        if (!view) return;
+
+        event.preventDefault();
+        if (window.location.hash !== link.hash) {
+            window.history.pushState(null, "", link.hash);
+        }
+        showView(view.id);
+        window.scrollTo(0, 0);
+    });
+
+    window.addEventListener("hashchange", () => showView(window.location.hash.slice(1)));
+    window.addEventListener("popstate", () => showView(window.location.hash.slice(1)));
+    showView(window.location.hash.slice(1));
+})();
+</script>
 
 <dialog id="edit-dialog" class="admin-edit-dialog">
     <form id="edit-form" class="student-profile-form">
