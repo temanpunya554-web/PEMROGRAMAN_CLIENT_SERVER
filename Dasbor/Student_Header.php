@@ -23,6 +23,7 @@ $studentPageLinks = [
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#223a6f" />
     <title><?= studentEscape($studentPageTitles[$activeStudentPage] ?? "Mahasiswa") ?> | Absensi Kampus</title>
+    <link rel="icon" type="image/png" sizes="256x256" href="../siabak-favicon.png?v=20261125" />
     <link rel="stylesheet" href="../Visual.css?v=20261124-siabak-refresh-4" />
 </head>
 <body class="home-page student-app">

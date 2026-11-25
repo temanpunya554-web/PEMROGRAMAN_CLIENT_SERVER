@@ -264,6 +264,7 @@ function renderPercentList($counts)
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dashboard Operator | Absensi Kampus</title>
+    <link rel="icon" type="image/png" sizes="256x256" href="../siabak-favicon.png?v=20261125" />
     <link rel="stylesheet" href="../Visual.css?v=20261125-admin-dashboard-tabs" />
 </head>
 <body class="home-page student-app admin-app">
