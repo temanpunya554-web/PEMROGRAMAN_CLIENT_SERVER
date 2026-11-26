@@ -412,7 +412,19 @@ require __DIR__ . "/Student_Header.php";
                 headers: { Accept: "application/json" },
                 signal: controller.signal
             });
-            const result = await response.json();
+            const responseText = await response.text();
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch {
+                const contentType = response.headers.get("content-type") || "content-type tidak tersedia";
+                throw new Error(
+                    `Server mengirim respons bukan JSON (HTTP ${response.status}, ${contentType}). Periksa endpoint Koneksi/WebAuthn.php dan log PHP.`
+                );
+            }
+            if (!result || typeof result !== "object") {
+                throw new Error("Respons endpoint WebAuthn tidak memiliki format data yang valid.");
+            }
             if (!response.ok || !result.success) throw new Error(result.message || "Verifikasi biometrik perangkat gagal.");
             return result;
         } catch (error) {
