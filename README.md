@@ -10,6 +10,18 @@
 6. Jalankan `Koneksi/Migration_Student_Authenticators.sql` untuk menyiapkan penyimpanan kredensial WebAuthn.
 7. Buka `http://localhost/PEMROGRAMAN%20CLIENT%20SERVER/SIABAK.html`.
 
+## Konfigurasi database
+
+Atur variabel lingkungan berikut pada runtime PHP:
+
+- `SIABAK_DB_HOST`
+- `SIABAK_DB_USERNAME`
+- `SIABAK_DB_PASSWORD` (boleh kosong jika server database memang tidak memakai password)
+- `SIABAK_DB_NAME`
+- `SIABAK_DB_PORT` (opsional, default `3306`)
+
+Pada Railway, masukkan variabel tersebut di bagian **Variables** pada layanan aplikasi dan restart/redeploy layanan. Untuk XAMPP, atur variabel lingkungan Windows sebelum menjalankan Apache, lalu restart Apache. Jangan simpan nilai rahasia di source code atau commit ke Git.
+
 ## Peran akun
 
 - **Mahasiswa:** memilih ruangan, melakukan verifikasi sidik jari dan wajah, lalu mencatat kehadiran.
