@@ -72,14 +72,14 @@ require __DIR__ . "/Student_Header.php";
         <strong>Ketentuan Absensi:</strong> Mahasiswa harus berada di dalam radius geofencing ruangan (50–100 meter). Pencocokan wajah membandingkan kamera dengan ciri wajah akun yang terdaftar dan meminta tantangan acak berupa kedipan atau gerakan kepala. Pemeriksaan keaktifan ini berjalan di browser dan belum merupakan layanan anti-spoof tingkat produksi. Verifikasi biometrik perangkat menggunakan WebAuthn dan memerlukan perangkat yang sudah didaftarkan serta koneksi HTTPS (kecuali localhost).
     </p>
 
-    <div id="attendance-success-notice" class="attendance-success-notice" role="status" aria-live="polite" hidden>
-        <span class="attendance-success-icon" aria-hidden="true">✓</span>
-        <div>
-            <strong>Absensi berhasil dicatat</strong>
+    <dialog id="attendance-success-screen" class="attendance-success-screen" aria-labelledby="attendance-success-title">
+        <div class="attendance-success-card">
+            <span class="attendance-success-icon" aria-hidden="true">✓</span>
+            <h2 id="attendance-success-title">Absensi berhasil!</h2>
             <p id="attendance-success-message"></p>
+            <a class="home-button" href="Beranda.php" id="attendance-home-button">Kembali ke halaman utama</a>
         </div>
-        <button type="button" id="dismiss-attendance-notice" aria-label="Tutup notifikasi">×</button>
-    </div>
+    </dialog>
 </section>
 
 <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js"></script>
@@ -111,9 +111,9 @@ require __DIR__ . "/Student_Header.php";
     const faceLandmarksCanvas = document.getElementById("face-landmarks-overlay");
     const faceLandmarksContext = faceLandmarksCanvas.getContext("2d");
     const cameraStatus = document.getElementById("camera-status");
-    const attendanceSuccessNotice = document.getElementById("attendance-success-notice");
+    const attendanceSuccessScreen = document.getElementById("attendance-success-screen");
     const attendanceSuccessMessage = document.getElementById("attendance-success-message");
-    const dismissAttendanceNotice = document.getElementById("dismiss-attendance-notice");
+    const attendanceHomeButton = document.getElementById("attendance-home-button");
     const networkBanner = document.getElementById("network-status-banner");
 
     let roomsData = [];
@@ -132,7 +132,6 @@ require __DIR__ . "/Student_Header.php";
     let faceProof = null;
     let landmarkTrackingActive = false;
     let landmarkAnimationFrame = 0;
-    let attendanceNoticeTimeout = 0;
 
     // --- FITUR UX: DETEKSI KONEKSI ONLINE/OFFLINE ---
     function updateNetworkStatus() {
@@ -240,16 +239,13 @@ require __DIR__ . "/Student_Header.php";
 
     function showAttendanceSuccess(message) {
         attendanceSuccessMessage.textContent = message;
-        attendanceSuccessNotice.hidden = false;
-        window.clearTimeout(attendanceNoticeTimeout);
-        attendanceNoticeTimeout = window.setTimeout(() => {
-            attendanceSuccessNotice.hidden = true;
-        }, 8000);
+        attendanceSuccessScreen.showModal();
+        stopCamera();
+        attendanceHomeButton.focus();
     }
 
-    dismissAttendanceNotice.addEventListener("click", () => {
-        attendanceSuccessNotice.hidden = true;
-        window.clearTimeout(attendanceNoticeTimeout);
+    attendanceSuccessScreen.addEventListener("cancel", (event) => {
+        event.preventDefault();
     });
 
     function stopCamera() {
@@ -771,10 +767,6 @@ require __DIR__ . "/Student_Header.php";
                     });
                     localStorage.setItem("siabak_history_cache", JSON.stringify(localHistory.slice(0, 20)));
                 } catch (e) {}
-
-                await loadRoomsForStudent();
-                resetVerification("Absensi berhasil dicatat! Kehadiran dan koordinat Anda tersimpan di sistem.");
-                await loadActiveSchedules();
             }
         } catch (error) {
             verificationStatus.textContent = "Absensi tidak dapat diproses karena gangguan server atau jaringan.";
