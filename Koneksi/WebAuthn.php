@@ -1,4 +1,5 @@
 <?php
+ob_start();
 header("Content-Type: application/json; charset=utf-8");
 session_start();
 
@@ -8,6 +9,17 @@ class WebAuthnInvalidResponse extends RuntimeException
 
 function webauthnRespond($statusCode, $success, $message, $extra = [])
 {
+    $unexpectedOutput = "";
+    while (ob_get_level() > 0) {
+        $buffer = ob_get_clean();
+        if (is_string($buffer)) {
+            $unexpectedOutput = $buffer . $unexpectedOutput;
+        }
+    }
+    if ($unexpectedOutput !== "") {
+        error_log("WebAuthn endpoint discarded " . strlen($unexpectedOutput) . " bytes of unexpected output.");
+    }
+
     http_response_code($statusCode);
     echo json_encode(array_merge([
         "success" => $success,
