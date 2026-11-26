@@ -43,8 +43,25 @@ function webauthnExpectedOrigin()
         if (!is_string($host) || $host === "" || preg_match('/[\r\n\/\\\\]/', $host)) {
             throw new RuntimeException("Asal WebAuthn belum dikonfigurasi.");
         }
-        $scheme = (!empty($_SERVER["HTTPS"]) && strtolower((string) $_SERVER["HTTPS"]) !== "off") ? "https" : "http";
-        $origin = $scheme . "://" . $host;
+        $hostParts = parse_url("http://" . $host);
+        if (!is_array($hostParts) || !isset($hostParts["host"]) || isset($hostParts["user"]) || isset($hostParts["pass"])) {
+            throw new RuntimeException("Host aplikasi tidak valid untuk WebAuthn.");
+        }
+        $requestOrigin = $_SERVER["HTTP_ORIGIN"] ?? "";
+        if (is_string($requestOrigin) && $requestOrigin !== "") {
+            $requestOriginParts = parse_url($requestOrigin);
+            if (
+                !is_array($requestOriginParts) ||
+                !isset($requestOriginParts["host"]) ||
+                strtolower($requestOriginParts["host"]) !== strtolower($hostParts["host"] ?? "")
+            ) {
+                throw new RuntimeException("Origin permintaan tidak cocok dengan host aplikasi.");
+            }
+            $origin = $requestOrigin;
+        } else {
+            $scheme = (!empty($_SERVER["HTTPS"]) && strtolower((string) $_SERVER["HTTPS"]) !== "off") ? "https" : "http";
+            $origin = $scheme . "://" . $host;
+        }
     }
 
     $parts = parse_url($origin);
@@ -157,14 +174,17 @@ function webauthnReadClientData($encoded, $expectedType, $challenge, $expectedOr
 {
     $raw = webauthnBase64UrlDecode($encoded);
     $data = json_decode($raw, true);
-    if (
-        !is_array($data) ||
-        ($data["type"] ?? null) !== $expectedType ||
-        ($data["challenge"] ?? null) !== $challenge ||
-        ($data["origin"] ?? null) !== $expectedOrigin ||
-        ($data["crossOrigin"] ?? false) !== false
-    ) {
-        throw new WebAuthnInvalidResponse("Tantangan autentikator tidak valid atau kedaluwarsa.");
+    if (!is_array($data) || ($data["type"] ?? null) !== $expectedType) {
+        throw new WebAuthnInvalidResponse("Jenis respons autentikator tidak sesuai.");
+    }
+    if (($data["challenge"] ?? null) !== $challenge) {
+        throw new WebAuthnInvalidResponse("Challenge browser berbeda dari challenge sesi server. Muat ulang halaman lalu coba kembali.");
+    }
+    if (($data["origin"] ?? null) !== $expectedOrigin) {
+        throw new WebAuthnInvalidResponse("Origin browser tidak cocok dengan konfigurasi server. Periksa HTTPS, proxy, atau SIABAK_WEBAUTHN_ORIGIN.");
+    }
+    if (($data["crossOrigin"] ?? false) !== false) {
+        throw new WebAuthnInvalidResponse("Pendaftaran biometrik tidak diizinkan dari iframe lintas origin.");
     }
     return $raw;
 }
