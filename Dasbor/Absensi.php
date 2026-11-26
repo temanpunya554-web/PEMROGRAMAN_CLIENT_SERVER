@@ -44,6 +44,7 @@ require __DIR__ . "/Student_Header.php";
             <button type="button" id="fingerprint-button" class="room-action lock-action" disabled>
                 2. Verifikasi biometrik perangkat
             </button>
+            <p id="fingerprint-status" class="form-help" role="status" aria-live="polite"></p>
 
             <!-- TAHAP 3: KAMERA WAJAH -->
             <button type="button" id="face-button" class="room-action open-action" disabled>
@@ -89,6 +90,7 @@ require __DIR__ . "/Student_Header.php";
     const gpsBadge = document.getElementById("gps-badge");
     const gpsDetails = document.getElementById("gps-details");
     const fingerprintButton = document.getElementById("fingerprint-button");
+    const fingerprintStatus = document.getElementById("fingerprint-status");
     const faceButton = document.getElementById("face-button");
     const enterRoomButton = document.getElementById("enter-room-button");
     const faceVideo = document.getElementById("face-video");
@@ -104,6 +106,7 @@ require __DIR__ . "/Student_Header.php";
     let gpsVerified = false;
     let userCoords = { latitude: null, longitude: null };
     let fingerprintVerified = false;
+    let fingerprintInProgress = false;
     let fingerprintProof = null;
     let faceVerified = false;
     let cameraStream = null;
@@ -154,9 +157,18 @@ require __DIR__ . "/Student_Header.php";
         cameraStatus.textContent = "Kamera belum aktif";
     }
 
+    function updateFingerprintStep() {
+        fingerprintButton.disabled = !gpsVerified || fingerprintVerified || fingerprintInProgress;
+        fingerprintButton.textContent = fingerprintVerified
+            ? "2. Biometrik perangkat terverifikasi"
+            : "2. Verifikasi biometrik perangkat";
+        faceButton.disabled = !fingerprintVerified || fingerprintInProgress;
+    }
+
     function resetVerification(message) {
         gpsVerified = false;
         fingerprintVerified = false;
+        fingerprintInProgress = false;
         fingerprintProof = null;
         faceVerified = false;
         faceProof = null;
@@ -167,8 +179,8 @@ require __DIR__ . "/Student_Header.php";
         gpsBadge.textContent = "Belum diperiksa";
         gpsBadge.className = "gps-badge gps-badge-pending";
 
-        fingerprintButton.disabled = true;
-        faceButton.disabled = true;
+        fingerprintStatus.textContent = "";
+        updateFingerprintStep();
         enterRoomButton.disabled = true;
         stopCamera();
         verificationStatus.textContent = message;
@@ -329,7 +341,7 @@ require __DIR__ . "/Student_Header.php";
             gpsBadge.textContent = "Lokasi ruangan belum diatur ❌";
             gpsBadge.className = "gps-badge gps-badge-out-range";
             gpsDetails.textContent = "Koordinat ruangan belum dikonfigurasi. Minta dosen atau admin mengatur geofence ruangan.";
-            fingerprintButton.disabled = true;
+            updateFingerprintStep();
             return;
         }
 
@@ -351,14 +363,14 @@ require __DIR__ . "/Student_Header.php";
                     gpsBadge.textContent = `Di dalam radius (${distance}m) ✅`;
                     gpsBadge.className = "gps-badge gps-badge-in-range";
                     gpsDetails.innerHTML = `Koordinat: ${userCoords.latitude.toFixed(6)}, ${userCoords.longitude.toFixed(6)}<br />Jarak ke ruangan: <strong>${distance} meter</strong> (Batas maksimal: ${maxRadius}m).`;
-                    fingerprintButton.disabled = false;
+                    updateFingerprintStep();
                     verificationStatus.textContent = "Lokasi terverifikasi di area kampus. Lanjutkan ke Tahap 2: Verifikasi Sidik Jari.";
                 } else {
                     gpsVerified = false;
                     gpsBadge.textContent = `Di luar radius (${distance}m) ❌`;
                     gpsBadge.className = "gps-badge gps-badge-out-range";
                     gpsDetails.innerHTML = `Koordinat Anda: ${userCoords.latitude.toFixed(6)}, ${userCoords.longitude.toFixed(6)}<br />Jarak Anda: <strong>${distance} meter</strong> (Melebihi batas maksimal ${maxRadius}m). Silakan berada di sekitar ruangan kelas.`;
-                    fingerprintButton.disabled = true;
+                    updateFingerprintStep();
                     verificationStatus.textContent = "Akses absensi ditolak karena posisi Anda berada di luar radius ruangan.";
                 }
             },
@@ -367,7 +379,7 @@ require __DIR__ . "/Student_Header.php";
                 gpsBadge.textContent = "Izin Ditolak / Gagal ❌";
                 gpsBadge.className = "gps-badge gps-badge-out-range";
                 gpsDetails.innerHTML = `Tidak dapat membaca GPS (${err.message}). Pastikan izin lokasi browser aktif.`;
-                fingerprintButton.disabled = true;
+                updateFingerprintStep();
             },
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
@@ -391,14 +403,26 @@ require __DIR__ . "/Student_Header.php";
         form.set("action", action);
         form.set("csrf_token", roomCsrfToken);
         Object.entries(values).forEach(([key, value]) => form.set(key, value));
-        const response = await fetch("../Koneksi/WebAuthn.php", {
-            method: "POST",
-            body: form,
-            headers: { Accept: "application/json" }
-        });
-        const result = await response.json();
-        if (!response.ok || !result.success) throw new Error(result.message || "Verifikasi biometrik perangkat gagal.");
-        return result;
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 20000);
+        try {
+            const response = await fetch("../Koneksi/WebAuthn.php", {
+                method: "POST",
+                body: form,
+                headers: { Accept: "application/json" },
+                signal: controller.signal
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) throw new Error(result.message || "Verifikasi biometrik perangkat gagal.");
+            return result;
+        } catch (error) {
+            if (error.name === "AbortError") {
+                throw new Error("Server tidak merespons dalam 20 detik. Periksa koneksi lalu ulangi verifikasi.");
+            }
+            throw error;
+        } finally {
+            window.clearTimeout(timeout);
+        }
     }
 
     // --- TAHAP 2: VERIFIKASI BIOMETRIK PERANGKAT ---
@@ -408,16 +432,28 @@ require __DIR__ . "/Student_Header.php";
             return;
         }
         if (!webauthnSupported) {
-            verificationStatus.textContent = !window.isSecureContext
+            const message = !window.isSecureContext
                 ? "Verifikasi biometrik memerlukan HTTPS atau localhost."
                 : "Browser tidak mendukung WebAuthn. Gunakan browser Android terbaru.";
+            fingerprintStatus.textContent = message;
+            verificationStatus.textContent = message;
             return;
         }
-        fingerprintButton.disabled = true;
+        fingerprintInProgress = true;
         fingerprintVerified = false;
         fingerprintProof = null;
+        updateFingerprintStep();
+        fingerprintStatus.textContent = "Menunggu konfirmasi sidik jari/perangkat...";
         verificationStatus.textContent = "Meminta verifikasi biometrik perangkat...";
+        let authenticationTimedOut = false;
+        let authenticationController;
+        let authenticationTimeout;
         try {
+            authenticationController = new AbortController();
+            authenticationTimeout = window.setTimeout(() => {
+                authenticationTimedOut = true;
+                authenticationController.abort();
+            }, 65000);
             const optionsResult = await requestWebAuthn("authentication_options", {
                 room_name: roomSelect.value,
                 schedule_id: scheduleSelect.value
@@ -429,8 +465,16 @@ require __DIR__ . "/Student_Header.php";
                 id: decodeBase64Url(credential.id)
             }));
 
-            const credential = await navigator.credentials.get({ publicKey });
+            fingerprintStatus.textContent = "Konfirmasi sidik jari atau kunci layar pada perangkat.";
+            verificationStatus.textContent = "Konfirmasi sidik jari atau kunci layar pada perangkat.";
+            const credential = await navigator.credentials.get({
+                publicKey,
+                signal: authenticationController.signal
+            });
             if (!credential) throw new Error("Verifikasi perangkat dibatalkan.");
+            window.clearTimeout(authenticationTimeout);
+            fingerprintStatus.textContent = "Biometrik diterima. Memverifikasi bukti perangkat dengan server...";
+            verificationStatus.textContent = "Biometrik diterima. Memverifikasi bukti perangkat dengan server...";
             const response = credential.response;
             const payload = {
                 id: credential.id,
@@ -446,14 +490,29 @@ require __DIR__ . "/Student_Header.php";
             const result = await requestWebAuthn("authentication_verify", {
                 credential: JSON.stringify(payload)
             });
+            if (typeof result.proof !== "string" || result.proof === "") {
+                throw new Error("Server tidak mengembalikan bukti verifikasi perangkat. Silakan coba kembali.");
+            }
             fingerprintProof = result.proof;
             fingerprintVerified = true;
-            faceButton.disabled = false;
-            verificationStatus.textContent = result.message + " Lanjutkan ke Tahap 3: Verifikasi wajah.";
+            fingerprintStatus.textContent = "Verifikasi berhasil. Tombol verifikasi wajah sudah aktif.";
+            verificationStatus.textContent = result.message + " Tombol verifikasi wajah sudah aktif.";
         } catch (error) {
-            verificationStatus.textContent = error.message || "Verifikasi biometrik gagal. Pastikan perangkat sudah didaftarkan.";
+            if (error.name === "AbortError" && authenticationTimedOut) {
+                fingerprintStatus.textContent = "Permintaan biometrik tidak menerima respons dalam 65 detik. Tekan tombol untuk mencoba lagi.";
+                verificationStatus.textContent = "Permintaan biometrik tidak menerima respons dalam 65 detik. Coba verifikasi lagi.";
+            } else if (error.name === "NotAllowedError") {
+                fingerprintStatus.textContent = "Verifikasi perangkat dibatalkan atau waktunya habis. Tekan tombol untuk mencoba lagi.";
+                verificationStatus.textContent = "Verifikasi perangkat dibatalkan atau waktunya habis. Tekan tombol biometrik untuk mencoba lagi.";
+            } else {
+                const message = error.message || "Verifikasi biometrik gagal. Pastikan perangkat sudah didaftarkan.";
+                fingerprintStatus.textContent = message;
+                verificationStatus.textContent = message;
+            }
         } finally {
-            fingerprintButton.disabled = !gpsVerified;
+            if (authenticationTimeout) window.clearTimeout(authenticationTimeout);
+            fingerprintInProgress = false;
+            updateFingerprintStep();
         }
     });
 
@@ -541,7 +600,7 @@ require __DIR__ . "/Student_Header.php";
             cameraStatus.textContent = "Verifikasi wajah belum berhasil";
             verificationStatus.textContent = error.message || "Verifikasi wajah gagal. Silakan coba lagi.";
         } finally {
-            faceButton.disabled = false;
+            faceButton.disabled = !fingerprintVerified;
         }
     });
 
