@@ -6,7 +6,7 @@ session_start();
 date_default_timezone_set("Asia/Makassar");
 // Absensi dibuka sekian menit sebelum kelas dimulai dan ditutup saat kelas selesai.
 const ATTENDANCE_OPEN_MINUTES_BEFORE = 15;
-const ATTENDANCE_TEST_MODE = false;
+const ATTENDANCE_TEST_MODE = true;
 
 function roomRespond($statusCode, $success, $message, $extra = [])
 {
