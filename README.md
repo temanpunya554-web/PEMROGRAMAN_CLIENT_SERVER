@@ -7,7 +7,8 @@
 3. Jalankan `Koneksi/Migration_Profile_Roles.sql` melalui phpMyAdmin untuk membuat tabel profil terpisah dan menyalin data profil lama.
 4. Jalankan `Koneksi/Migration_Admin_Dosen_Gender.sql` dan `Koneksi/Migration_Dosen_Profile_Enhancement.sql` untuk memastikan kolom jenis kelamin dan NIP pada profil Dosen tersedia.
 5. Jalankan `Koneksi/Migration_Room_Geofencing.sql` untuk mengaktifkan koordinat GPS dan radius geofencing pada ruangan serta riwayat absensi.
-6. Buka `http://localhost/PEMROGRAMAN%20CLIENT%20SERVER/SIABAK.html`.
+6. Jalankan `Koneksi/Migration_Student_Authenticators.sql` untuk menyiapkan penyimpanan kredensial WebAuthn.
+7. Buka `http://localhost/PEMROGRAMAN%20CLIENT%20SERVER/SIABAK.html`.
 
 ## Peran akun
 
@@ -48,7 +49,9 @@ Dosen mengubah status ruangan melalui `Dasbor/Dosen.php`. Mahasiswa hanya dapat 
 
 ## Catatan biometrik
 
-Versi ini menggunakan simulasi sidik jari dan kamera perangkat untuk pengenalan wajah sebagai prototipe presentasi. Verifikasi identitas produksi memerlukan sensor fingerprint, SDK wajah/liveness, dan penyimpanan template biometrik yang aman.
+Pemeriksaan sidik jari menggunakan WebAuthn/passkey melalui autentikator platform perangkat, seperti sidik jari Android. Mahasiswa harus membuka **Pendaftaran biometrik** dari perangkat dan browser yang akan digunakan, lalu memilih **Daftarkan perangkat ini**. Saat absensi, server memvalidasi tanda tangan kriptografis perangkat; data sidik jari tidak dikirim atau disimpan oleh SIABAK. Browser/perangkat dapat meminta PIN atau metode kunci layar sebagai alternatif sesuai pengaturan Android.
+
+WebAuthn hanya berjalan pada konteks aman: gunakan HTTPS untuk akses melalui jaringan atau domain, dan `localhost` untuk pengembangan pada perangkat yang sama. Akses ke alamat IP XAMPP melalui HTTP dari ponsel tidak memenuhi persyaratan keamanan browser. Untuk domain produksi di belakang proxy atau domain khusus, atur environment variable `SIABAK_WEBAUTHN_ORIGIN` ke origin persis (contoh `https://absensi.example.id`) dan `SIABAK_WEBAUTHN_RP_ID` ke nama domain RP (contoh `absensi.example.id`). Tidak ada mode simulasi untuk verifikasi biometrik.
 
 ## Dashboard admin
 
@@ -110,7 +113,7 @@ Catatan: database versi awal belum menghubungkan data absensi biometrik `class_a
 
 ## Catatan verifikasi biometrik pada tahap pengembangan
 
-Alur absensi saat ini mewajibkan urutan geofencing, langkah sidik jari, lalu kamera wajah. Nilai `FingerprintVerified` dan `FaceVerified` dicatat pada tabel `class_attendance`. Namun, tombol sidik jari dan langkah kamera masih berupa simulasi/prototipe; kamera hanya diaktifkan dan belum melakukan pencocokan identitas wajah. Integrasi perangkat/SDK sidik jari dan mesin pengenalan wajah sungguhan masih perlu dikerjakan sebelum digunakan sebagai verifikasi produksi.
+Alur absensi mewajibkan urutan geofencing, verifikasi WebAuthn perangkat, lalu kamera wajah. Nilai `FingerprintVerified` dan `FaceVerified` dicatat pada tabel `class_attendance`. Verifikasi wajah membandingkan descriptor akun, tetapi tantangan kedipan/gerakan kepala masih pemeriksaan keaktifan dasar di browser dan belum merupakan anti-spoof tingkat produksi.
 
 ## Pencocokan wajah saat absensi
 
@@ -119,7 +122,7 @@ Alur absensi saat ini mewajibkan urutan geofencing, langkah sidik jari, lalu kam
 3. Saat absensi, browser memuat model face-api.js dari jsDelivr, meminta mahasiswa menggerakkan kepala sedikit ke kiri dan kanan, lalu mengirim descriptor kamera ke `Koneksi/Face_Verify.php`.
 4. Server membandingkan descriptor live dengan descriptor akun yang sedang login. Hanya jika cocok, server menerbitkan bukti sesi satu kali yang diperlukan oleh `Koneksi/Room.php` untuk mencatat absensi.
 
-**Catatan penting:** koneksi internet diperlukan untuk memuat pustaka dan model face-api.js. Akses kamera memerlukan HTTPS atau localhost. Ambang kecocokan awal adalah 0,52 dan perlu dikalibrasi menggunakan kamera serta kondisi pencahayaan kampus. Gerakan kepala merupakan pemeriksaan keaktifan dasar, bukan liveness/anti-spoof yang kuat; foto atau video yang diputar masih mungkin mengelabui pemeriksaan sederhana. Jangan gunakan sebagai satu-satunya faktor keamanan untuk penerapan resmi tanpa pengujian dan penguatan anti-spoof. Sidik jari tetap simulasi sampai perangkat dan SDK sensor tersedia.
+**Catatan penting:** koneksi internet diperlukan untuk memuat pustaka dan model face-api.js. Akses kamera dan WebAuthn memerlukan HTTPS atau localhost. Ambang kecocokan awal adalah 0,52 dan perlu dikalibrasi menggunakan kamera serta kondisi pencahayaan kampus. Gerakan kepala merupakan pemeriksaan keaktifan dasar, bukan liveness/anti-spoof yang kuat; foto atau video yang diputar masih mungkin mengelabui pemeriksaan sederhana. Jangan gunakan sebagai satu-satunya faktor keamanan untuk penerapan resmi tanpa pengujian dan penguatan anti-spoof.
 
 ## Fitur layanan chat bantuan admin
 

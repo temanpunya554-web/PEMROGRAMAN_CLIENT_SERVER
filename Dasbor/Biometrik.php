@@ -10,6 +10,15 @@ mysqli_stmt_execute($faceStatement);
 mysqli_stmt_bind_result($faceStatement, $faceUpdatedAt, $faceHasDescriptor);
 $faceEnrolled = mysqli_stmt_fetch($faceStatement);
 mysqli_stmt_close($faceStatement);
+$authenticatorStatement = mysqli_prepare(
+    $conn,
+    "SELECT COUNT(*) FROM `mahasiswa_authenticators` WHERE `Username` = ?"
+);
+mysqli_stmt_bind_param($authenticatorStatement, "s", $studentUsername);
+mysqli_stmt_execute($authenticatorStatement);
+mysqli_stmt_bind_result($authenticatorStatement, $authenticatorCount);
+mysqli_stmt_fetch($authenticatorStatement);
+mysqli_stmt_close($authenticatorStatement);
 require __DIR__ . "/Student_Header.php";
 ?>
 <section class="student-page-heading">
@@ -19,7 +28,7 @@ require __DIR__ . "/Student_Header.php";
 </section>
 
 <p class="community-privacy-note">
-    Foto wajah dan ciri biometriknya digunakan sebagai acuan pencocokan saat absensi. Jika sistem meminta pendaftaran ulang, ambil foto baru dengan satu wajah, pencahayaan cukup, dan wajah menghadap kamera. Foto dapat diganti atau dihapus. Pendaftaran sidik jari menunggu perangkat sensor/SDK dari dosen.
+    Foto wajah dan ciri biometriknya digunakan sebagai acuan pencocokan saat absensi. Jika sistem meminta pendaftaran ulang, ambil foto baru dengan satu wajah, pencahayaan cukup, dan wajah menghadap kamera. Foto dapat diganti atau dihapus.
 </p>
 
 <div class="biometric-enrollment-grid student-biometric-grid">
@@ -56,9 +65,20 @@ require __DIR__ . "/Student_Header.php";
 
     <section class="student-content-panel biometric-enrollment-card">
         <h2>Pendaftaran sidik jari</h2>
-        <p class="student-enrollment-status">Status: menunggu perangkat sensor.</p>
-        <p>Pendaftaran sidik jari asli belum bisa dilakukan dari halaman web ini. Setelah tipe sensor/SDK ditentukan bersama dosen, bagian ini dapat dihubungkan ke perangkat pendaftaran.</p>
-        <p class="community-privacy-note">Belum ada data sidik jari yang direkam atau disimpan.</p>
+        <p id="authenticator-status" role="status">
+            <?= (int) $authenticatorCount > 0
+                ? (int) $authenticatorCount . " perangkat biometrik terdaftar pada akun ini."
+                : "Belum ada perangkat biometrik yang didaftarkan." ?>
+        </p>
+        <p>Daftarkan sidik jari atau biometrik perangkat Android melalui browser yang mendukung WebAuthn. SIABAK hanya menyimpan kunci publik perangkat; data sidik jari tidak dibaca atau disimpan oleh situs.</p>
+        <p class="community-privacy-note">Pendaftaran memerlukan HTTPS (atau localhost). Android dapat meminta sidik jari, PIN, atau metode kunci layar sesuai pengaturan perangkat.</p>
+        <div class="home-actions biometric-actions">
+            <button type="button" class="home-button" id="register-authenticator">Daftarkan perangkat ini</button>
+            <button type="button" class="room-action lock-action" id="delete-authenticators" <?= (int) $authenticatorCount > 0 ? "" : "hidden" ?>>
+                Hapus perangkat terdaftar
+            </button>
+        </div>
+        <p class="community-data-status" id="authenticator-message" role="status"></p>
     </section>
 </div>
 
@@ -73,6 +93,100 @@ require __DIR__ . "/Student_Header.php";
         faceModelsReady = true;
     }
     const faceEnrollmentCsrfToken = <?= json_encode($studentCsrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    const authenticatorStatus = document.getElementById("authenticator-status");
+    const authenticatorMessage = document.getElementById("authenticator-message");
+    const registerAuthenticatorButton = document.getElementById("register-authenticator");
+    const deleteAuthenticatorsButton = document.getElementById("delete-authenticators");
+
+    function decodeBase64Url(value) {
+        const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
+        const padded = base64 + "=".repeat((4 - base64.length % 4) % 4);
+        return Uint8Array.from(atob(padded), (character) => character.charCodeAt(0));
+    }
+
+    function encodeBase64Url(value) {
+        const bytes = new Uint8Array(value);
+        let binary = "";
+        bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+        return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+    }
+
+    async function sendAuthenticatorRequest(action, values = {}) {
+        const form = new FormData();
+        form.set("action", action);
+        form.set("csrf_token", faceEnrollmentCsrfToken);
+        Object.entries(values).forEach(([key, value]) => form.set(key, value));
+        const response = await fetch("../Koneksi/WebAuthn.php", {
+            method: "POST",
+            body: form,
+            headers: { Accept: "application/json" }
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || "Permintaan autentikator gagal.");
+        return result;
+    }
+
+    registerAuthenticatorButton.addEventListener("click", async () => {
+        authenticatorMessage.textContent = "";
+        if (!window.isSecureContext) {
+            authenticatorMessage.textContent = "Pendaftaran biometrik memerlukan HTTPS atau localhost.";
+            return;
+        }
+        if (!window.PublicKeyCredential || !navigator.credentials) {
+            authenticatorMessage.textContent = "Browser ini belum mendukung WebAuthn. Gunakan browser Android terbaru melalui HTTPS.";
+            return;
+        }
+        registerAuthenticatorButton.disabled = true;
+        try {
+            const optionsResult = await sendAuthenticatorRequest("register_options");
+            const publicKey = optionsResult.publicKey;
+            publicKey.challenge = decodeBase64Url(publicKey.challenge);
+            publicKey.user.id = decodeBase64Url(publicKey.user.id);
+            publicKey.excludeCredentials = publicKey.excludeCredentials.map((credential) => ({
+                ...credential,
+                id: decodeBase64Url(credential.id)
+            }));
+
+            const credential = await navigator.credentials.create({ publicKey });
+            if (!credential) throw new Error("Pendaftaran perangkat dibatalkan.");
+            const response = credential.response;
+            const payload = {
+                id: credential.id,
+                rawId: encodeBase64Url(credential.rawId),
+                type: credential.type,
+                response: {
+                    clientDataJSON: encodeBase64Url(response.clientDataJSON),
+                    attestationObject: encodeBase64Url(response.attestationObject)
+                }
+            };
+            const saved = await sendAuthenticatorRequest("register_verify", {
+                credential: JSON.stringify(payload)
+            });
+            authenticatorStatus.textContent = "Perangkat biometrik berhasil didaftarkan.";
+            authenticatorMessage.textContent = saved.message;
+            deleteAuthenticatorsButton.hidden = false;
+        } catch (error) {
+            authenticatorMessage.textContent = error.message || "Perangkat biometrik tidak dapat didaftarkan.";
+        } finally {
+            registerAuthenticatorButton.disabled = false;
+        }
+    });
+
+    deleteAuthenticatorsButton.addEventListener("click", async () => {
+        if (!window.confirm("Hapus semua perangkat biometrik yang terdaftar pada akun ini?")) return;
+        deleteAuthenticatorsButton.disabled = true;
+        try {
+            const result = await sendAuthenticatorRequest("delete_credentials");
+            authenticatorStatus.textContent = "Belum ada perangkat biometrik yang didaftarkan.";
+            authenticatorMessage.textContent = result.message;
+            deleteAuthenticatorsButton.hidden = true;
+        } catch (error) {
+            authenticatorMessage.textContent = error.message || "Perangkat biometrik tidak dapat dihapus.";
+        } finally {
+            deleteAuthenticatorsButton.disabled = false;
+        }
+    });
+
     const enrollmentVideo = document.getElementById("face-enrollment-video");
     const enrollmentPhotoPreview = document.getElementById("face-enrollment-photo-preview");
     const enrollmentCameraHint = document.getElementById("face-enrollment-camera-hint");

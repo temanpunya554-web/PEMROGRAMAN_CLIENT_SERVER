@@ -188,7 +188,6 @@ try {
         }
 
         $roomName = trim($_POST["room_name"] ?? "");
-        $fingerprintVerified = (($_POST["fingerprint_verified"] ?? "") === "1") ? 1 : 0;
         $faceVerified = (($_POST["face_verified"] ?? "") === "1") ? 1 : 0;
 
         $scheduleId = isset($_POST["schedule_id"]) && ctype_digit((string) $_POST["schedule_id"]) ? (int) $_POST["schedule_id"] : 0;
@@ -217,15 +216,32 @@ try {
         $submittedFaceProof = $_POST["face_proof"] ?? "";
         $sessionFaceProof = $_SESSION["face_attendance_proof"] ?? "";
         $proofExpires = (int) ($_SESSION["face_attendance_proof_expires"] ?? 0);
-        if ($roomName === "" || $fingerprintVerified !== 1 || $faceVerified !== 1) {
+        $submittedFingerprintProof = $_POST["fingerprint_proof"] ?? "";
+        $sessionFingerprintProof = $_SESSION["fingerprint_attendance_proof"] ?? null;
+        if ($roomName === "" || $faceVerified !== 1) {
             roomRespond(400, false, "Sidik jari dan pencocokan wajah harus berhasil terlebih dahulu.");
+        }
+        if (
+            !is_string($submittedFingerprintProof) ||
+            !is_array($sessionFingerprintProof) ||
+            !is_string($sessionFingerprintProof["proof"] ?? null) ||
+            (int) ($sessionFingerprintProof["expires"] ?? 0) < time() ||
+            ($sessionFingerprintProof["room_name"] ?? null) !== $roomName ||
+            (int) ($sessionFingerprintProof["schedule_id"] ?? 0) !== $scheduleId ||
+            !hash_equals($sessionFingerprintProof["proof"], $submittedFingerprintProof)
+        ) {
+            roomRespond(403, false, "Bukti verifikasi biometrik perangkat tidak valid atau kedaluwarsa. Ulangi verifikasi.");
         }
         if (!is_string($submittedFaceProof) || !is_string($sessionFaceProof) || $sessionFaceProof === "" ||
             $proofExpires < time() || !hash_equals($sessionFaceProof, $submittedFaceProof)) {
             roomRespond(403, false, "Bukti pencocokan wajah tidak valid atau kedaluwarsa. Ulangi verifikasi wajah.");
         }
         // Bukti hanya boleh digunakan satu kali.
-        unset($_SESSION["face_attendance_proof"], $_SESSION["face_attendance_proof_expires"]);
+        unset(
+            $_SESSION["face_attendance_proof"],
+            $_SESSION["face_attendance_proof_expires"],
+            $_SESSION["fingerprint_attendance_proof"]
+        );
 
         $roomHasGeofence = false;
         $roomLat = null;

@@ -42,7 +42,7 @@ require __DIR__ . "/Student_Header.php";
 
             <!-- TAHAP 2: FINGERPRINT -->
             <button type="button" id="fingerprint-button" class="room-action lock-action" disabled>
-                2. Verifikasi sidik jari (simulasi)
+                2. Verifikasi biometrik perangkat
             </button>
 
             <!-- TAHAP 3: KAMERA WAJAH -->
@@ -63,7 +63,7 @@ require __DIR__ . "/Student_Header.php";
     </div>
 
     <p class="community-privacy-note">
-        <strong>Ketentuan Absensi:</strong> Mahasiswa harus berada di dalam radius geofencing ruangan (50–100 meter). Pencocokan wajah membandingkan kamera dengan ciri wajah akun yang terdaftar dan meminta tantangan acak berupa kedipan atau gerakan kepala. Pemeriksaan keaktifan ini berjalan di browser dan belum merupakan layanan anti-spoof tingkat produksi. Sidik jari masih simulasi karena perangkat belum tersedia.
+        <strong>Ketentuan Absensi:</strong> Mahasiswa harus berada di dalam radius geofencing ruangan (50–100 meter). Pencocokan wajah membandingkan kamera dengan ciri wajah akun yang terdaftar dan meminta tantangan acak berupa kedipan atau gerakan kepala. Pemeriksaan keaktifan ini berjalan di browser dan belum merupakan layanan anti-spoof tingkat produksi. Verifikasi biometrik perangkat menggunakan WebAuthn dan memerlukan perangkat yang sudah didaftarkan serta koneksi HTTPS (kecuali localhost).
     </p>
 </section>
 
@@ -78,6 +78,7 @@ require __DIR__ . "/Student_Header.php";
         faceModelsReady = true;
     }
     const roomCsrfToken = <?= json_encode($studentCsrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    const webauthnSupported = Boolean(window.isSecureContext && window.PublicKeyCredential && navigator.credentials);
     const roomSelect = document.getElementById("room-select");
     const scheduleSelect = document.getElementById("schedule-select");
     const scheduleHint = document.getElementById("schedule-hint");
@@ -103,6 +104,7 @@ require __DIR__ . "/Student_Header.php";
     let gpsVerified = false;
     let userCoords = { latitude: null, longitude: null };
     let fingerprintVerified = false;
+    let fingerprintProof = null;
     let faceVerified = false;
     let cameraStream = null;
     let faceProof = null;
@@ -155,6 +157,7 @@ require __DIR__ . "/Student_Header.php";
     function resetVerification(message) {
         gpsVerified = false;
         fingerprintVerified = false;
+        fingerprintProof = null;
         faceVerified = false;
         faceProof = null;
         userCoords = { latitude: null, longitude: null };
@@ -370,15 +373,88 @@ require __DIR__ . "/Student_Header.php";
         );
     });
 
-    // --- TAHAP 2: SIDIK JARI ---
-    fingerprintButton.addEventListener("click", () => {
+    function decodeBase64Url(value) {
+        const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
+        const padded = base64 + "=".repeat((4 - base64.length % 4) % 4);
+        return Uint8Array.from(atob(padded), (character) => character.charCodeAt(0));
+    }
+
+    function encodeBase64Url(value) {
+        const bytes = new Uint8Array(value);
+        let binary = "";
+        bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+        return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+    }
+
+    async function requestWebAuthn(action, values = {}) {
+        const form = new FormData();
+        form.set("action", action);
+        form.set("csrf_token", roomCsrfToken);
+        Object.entries(values).forEach(([key, value]) => form.set(key, value));
+        const response = await fetch("../Koneksi/WebAuthn.php", {
+            method: "POST",
+            body: form,
+            headers: { Accept: "application/json" }
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || "Verifikasi biometrik perangkat gagal.");
+        return result;
+    }
+
+    // --- TAHAP 2: VERIFIKASI BIOMETRIK PERANGKAT ---
+    fingerprintButton.addEventListener("click", async () => {
         if (!gpsVerified) {
             verificationStatus.textContent = "Verifikasi lokasi GPS Anda terlebih dahulu.";
             return;
         }
-        fingerprintVerified = true;
-        faceButton.disabled = false;
-        verificationStatus.textContent = "Tahap sidik jari simulasi selesai. Lanjutkan ke Tahap 3: Aktifkan kamera.";
+        if (!webauthnSupported) {
+            verificationStatus.textContent = !window.isSecureContext
+                ? "Verifikasi biometrik memerlukan HTTPS atau localhost."
+                : "Browser tidak mendukung WebAuthn. Gunakan browser Android terbaru.";
+            return;
+        }
+        fingerprintButton.disabled = true;
+        fingerprintVerified = false;
+        fingerprintProof = null;
+        verificationStatus.textContent = "Meminta verifikasi biometrik perangkat...";
+        try {
+            const optionsResult = await requestWebAuthn("authentication_options", {
+                room_name: roomSelect.value,
+                schedule_id: scheduleSelect.value
+            });
+            const publicKey = optionsResult.publicKey;
+            publicKey.challenge = decodeBase64Url(publicKey.challenge);
+            publicKey.allowCredentials = publicKey.allowCredentials.map((credential) => ({
+                ...credential,
+                id: decodeBase64Url(credential.id)
+            }));
+
+            const credential = await navigator.credentials.get({ publicKey });
+            if (!credential) throw new Error("Verifikasi perangkat dibatalkan.");
+            const response = credential.response;
+            const payload = {
+                id: credential.id,
+                rawId: encodeBase64Url(credential.rawId),
+                type: credential.type,
+                response: {
+                    clientDataJSON: encodeBase64Url(response.clientDataJSON),
+                    authenticatorData: encodeBase64Url(response.authenticatorData),
+                    signature: encodeBase64Url(response.signature),
+                    userHandle: response.userHandle ? encodeBase64Url(response.userHandle) : null
+                }
+            };
+            const result = await requestWebAuthn("authentication_verify", {
+                credential: JSON.stringify(payload)
+            });
+            fingerprintProof = result.proof;
+            fingerprintVerified = true;
+            faceButton.disabled = false;
+            verificationStatus.textContent = result.message + " Lanjutkan ke Tahap 3: Verifikasi wajah.";
+        } catch (error) {
+            verificationStatus.textContent = error.message || "Verifikasi biometrik gagal. Pastikan perangkat sudah didaftarkan.";
+        } finally {
+            fingerprintButton.disabled = !gpsVerified;
+        }
     });
 
     // --- TAHAP 3: TANTANGAN KEAKTIFAN + PENCOCOKAN WAJAH ---
@@ -482,7 +558,7 @@ require __DIR__ . "/Student_Header.php";
         form.set("action", "verify_access");
         form.set("room_name", roomSelect.value);
         form.set("schedule_id", scheduleSelect.value);
-        form.set("fingerprint_verified", "1");
+        form.set("fingerprint_proof", fingerprintProof || "");
         form.set("face_verified", "1");
         form.set("face_proof", faceProof || "");
         form.set("user_latitude", userCoords.latitude !== null ? userCoords.latitude : "");
