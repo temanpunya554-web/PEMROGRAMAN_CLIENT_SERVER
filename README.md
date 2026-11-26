@@ -133,6 +133,7 @@ Alur absensi mewajibkan urutan geofencing, verifikasi WebAuthn perangkat, lalu k
 2. Mahasiswa membuka menu **Pendaftaran biometrik**, mengaktifkan kamera, mengambil foto, menyetujui penyimpanan, lalu menyimpan pendaftaran. Sistem membuat face descriptor 128 dimensi dari satu wajah yang terdeteksi.
 3. Saat absensi, browser memuat model face-api.js dari jsDelivr, meminta mahasiswa menggerakkan kepala sedikit ke kiri dan kanan, lalu mengirim descriptor kamera ke `Koneksi/Face_Verify.php`.
 4. Server membandingkan descriptor live dengan descriptor akun yang sedang login. Hanya jika cocok, server menerbitkan bukti sesi satu kali yang diperlukan oleh `Koneksi/Room.php` untuk mencatat absensi.
+5. Selama pemeriksaan, titik-titik landmark wajah ditampilkan di atas pratinjau kamera. Setelah server berhasil mencatat kehadiran, halaman menampilkan notifikasi sukses.
 
 **Catatan penting:** koneksi internet diperlukan untuk memuat pustaka dan model face-api.js. Akses kamera dan WebAuthn memerlukan HTTPS atau localhost. Ambang kecocokan awal adalah 0,52 dan perlu dikalibrasi menggunakan kamera serta kondisi pencahayaan kampus. Gerakan kepala merupakan pemeriksaan keaktifan dasar, bukan liveness/anti-spoof yang kuat; foto atau video yang diputar masih mungkin mengelabui pemeriksaan sederhana. Jangan gunakan sebagai satu-satunya faktor keamanan untuk penerapan resmi tanpa pengujian dan penguatan anti-spoof.
 

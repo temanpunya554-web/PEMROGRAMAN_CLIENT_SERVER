@@ -59,6 +59,11 @@ require __DIR__ . "/Student_Header.php";
 
         <div class="face-preview">
             <video id="face-video" autoplay muted playsinline></video>
+            <canvas id="face-landmarks-overlay" aria-hidden="true"></canvas>
+            <div class="face-landmarks-legend">
+                <span aria-hidden="true"></span>
+                Titik sensor melacak fitur wajah
+            </div>
             <span id="camera-status">Kamera belum aktif</span>
         </div>
     </div>
@@ -66,6 +71,15 @@ require __DIR__ . "/Student_Header.php";
     <p class="community-privacy-note">
         <strong>Ketentuan Absensi:</strong> Mahasiswa harus berada di dalam radius geofencing ruangan (50–100 meter). Pencocokan wajah membandingkan kamera dengan ciri wajah akun yang terdaftar dan meminta tantangan acak berupa kedipan atau gerakan kepala. Pemeriksaan keaktifan ini berjalan di browser dan belum merupakan layanan anti-spoof tingkat produksi. Verifikasi biometrik perangkat menggunakan WebAuthn dan memerlukan perangkat yang sudah didaftarkan serta koneksi HTTPS (kecuali localhost).
     </p>
+
+    <div id="attendance-success-notice" class="attendance-success-notice" role="status" aria-live="polite" hidden>
+        <span class="attendance-success-icon" aria-hidden="true">✓</span>
+        <div>
+            <strong>Absensi berhasil dicatat</strong>
+            <p id="attendance-success-message"></p>
+        </div>
+        <button type="button" id="dismiss-attendance-notice" aria-label="Tutup notifikasi">×</button>
+    </div>
 </section>
 
 <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js"></script>
@@ -94,7 +108,12 @@ require __DIR__ . "/Student_Header.php";
     const faceButton = document.getElementById("face-button");
     const enterRoomButton = document.getElementById("enter-room-button");
     const faceVideo = document.getElementById("face-video");
+    const faceLandmarksCanvas = document.getElementById("face-landmarks-overlay");
+    const faceLandmarksContext = faceLandmarksCanvas.getContext("2d");
     const cameraStatus = document.getElementById("camera-status");
+    const attendanceSuccessNotice = document.getElementById("attendance-success-notice");
+    const attendanceSuccessMessage = document.getElementById("attendance-success-message");
+    const dismissAttendanceNotice = document.getElementById("dismiss-attendance-notice");
     const networkBanner = document.getElementById("network-status-banner");
 
     let roomsData = [];
@@ -111,6 +130,9 @@ require __DIR__ . "/Student_Header.php";
     let faceVerified = false;
     let cameraStream = null;
     let faceProof = null;
+    let landmarkTrackingActive = false;
+    let landmarkAnimationFrame = 0;
+    let attendanceNoticeTimeout = 0;
 
     // --- FITUR UX: DETEKSI KONEKSI ONLINE/OFFLINE ---
     function updateNetworkStatus() {
@@ -148,7 +170,91 @@ require __DIR__ . "/Student_Header.php";
         return (distance(eye[1], eye[5]) + distance(eye[2], eye[4])) / (2 * horizontal);
     }
 
+    function clearFaceLandmarks() {
+        if (faceLandmarksContext) {
+            faceLandmarksContext.clearRect(0, 0, faceLandmarksCanvas.width, faceLandmarksCanvas.height);
+        }
+    }
+
+    function drawFaceLandmarks(landmarks) {
+        if (faceLandmarksCanvas.width !== faceVideo.videoWidth || faceLandmarksCanvas.height !== faceVideo.videoHeight) {
+            faceLandmarksCanvas.width = faceVideo.videoWidth;
+            faceLandmarksCanvas.height = faceVideo.videoHeight;
+        }
+        clearFaceLandmarks();
+        const pointRadius = Math.max(2, faceVideo.videoWidth / 240);
+        landmarks.positions.forEach((point) => {
+            faceLandmarksContext.beginPath();
+            faceLandmarksContext.arc(point.x, point.y, pointRadius, 0, Math.PI * 2);
+            faceLandmarksContext.fillStyle = "#67e8f9";
+            faceLandmarksContext.fill();
+            faceLandmarksContext.beginPath();
+            faceLandmarksContext.arc(point.x, point.y, pointRadius * 2, 0, Math.PI * 2);
+            faceLandmarksContext.strokeStyle = "rgba(103, 232, 249, 0.55)";
+            faceLandmarksContext.lineWidth = Math.max(1, faceVideo.videoWidth / 640);
+            faceLandmarksContext.stroke();
+        });
+    }
+
+    function stopLandmarkTracking() {
+        landmarkTrackingActive = false;
+        if (landmarkAnimationFrame) {
+            cancelAnimationFrame(landmarkAnimationFrame);
+            landmarkAnimationFrame = 0;
+        }
+    }
+
+    function startLandmarkTracking() {
+        stopLandmarkTracking();
+        landmarkTrackingActive = true;
+        let lastDetectionAt = 0;
+
+        const trackLandmarks = async (timestamp) => {
+            if (!landmarkTrackingActive) return;
+            try {
+                if (timestamp - lastDetectionAt >= 180 && faceVideo.readyState >= 2) {
+                    lastDetectionAt = timestamp;
+                    const detection = await faceapi
+                        .detectSingleFace(faceVideo, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.6 }))
+                        .withFaceLandmarks();
+                    if (!landmarkTrackingActive) return;
+                    if (detection) {
+                        drawFaceLandmarks(detection.landmarks);
+                    } else {
+                        clearFaceLandmarks();
+                    }
+                }
+            } catch (error) {
+                stopLandmarkTracking();
+                clearFaceLandmarks();
+                cameraStatus.textContent = "Pelacakan titik wajah berhenti: " + (error.message || "terjadi kesalahan.");
+                return;
+            }
+            if (landmarkTrackingActive) {
+                landmarkAnimationFrame = requestAnimationFrame(trackLandmarks);
+            }
+        };
+
+        landmarkAnimationFrame = requestAnimationFrame(trackLandmarks);
+    }
+
+    function showAttendanceSuccess(message) {
+        attendanceSuccessMessage.textContent = message;
+        attendanceSuccessNotice.hidden = false;
+        window.clearTimeout(attendanceNoticeTimeout);
+        attendanceNoticeTimeout = window.setTimeout(() => {
+            attendanceSuccessNotice.hidden = true;
+        }, 8000);
+    }
+
+    dismissAttendanceNotice.addEventListener("click", () => {
+        attendanceSuccessNotice.hidden = true;
+        window.clearTimeout(attendanceNoticeTimeout);
+    });
+
     function stopCamera() {
+        stopLandmarkTracking();
+        clearFaceLandmarks();
         if (cameraStream) {
             cameraStream.getTracks().forEach((track) => track.stop());
             cameraStream = null;
@@ -541,8 +647,11 @@ require __DIR__ . "/Student_Header.php";
         faceButton.disabled = true;
         faceVerified = false;
         faceProof = null;
+        stopLandmarkTracking();
+        clearFaceLandmarks();
         try {
             await loadFaceModels();
+            if (!faceLandmarksContext) throw new Error("Overlay sensor wajah tidak dapat diinisialisasi.");
             if (!cameraStream) {
                 cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
                 faceVideo.srcObject = cameraStream;
@@ -565,6 +674,7 @@ require __DIR__ . "/Student_Header.php";
                 await new Promise(resolve => setTimeout(resolve, 180));
                 const detection = await faceapi.detectSingleFace(faceVideo, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.6 })).withFaceLandmarks().withFaceDescriptor();
                 if (!detection) throw new Error("Wajah tidak terdeteksi. Pastikan wajah terlihat jelas dan pencahayaan cukup.");
+                drawFaceLandmarks(detection.landmarks);
                 const box = detection.detection.box;
                 const nose = detection.landmarks.getNose();
                 const leftEye = detection.landmarks.getLeftEye();
@@ -606,9 +716,12 @@ require __DIR__ . "/Student_Header.php";
             enterRoomButton.disabled = false;
             cameraStatus.textContent = "Wajah cocok dengan akun terdaftar ✓";
             verificationStatus.textContent = verifyResult.message + " Tantangan keaktifan berhasil.";
+            startLandmarkTracking();
         } catch (error) {
             faceVerified = false;
             faceProof = null;
+            stopLandmarkTracking();
+            clearFaceLandmarks();
             cameraStatus.textContent = "Verifikasi wajah belum berhasil";
             verificationStatus.textContent = error.message || "Verifikasi wajah gagal. Silakan coba lagi.";
         } finally {
@@ -646,6 +759,7 @@ require __DIR__ . "/Student_Header.php";
             verificationStatus.textContent = result.message;
 
             if (response.ok && result.success) {
+                showAttendanceSuccess(result.message);
                 // Simpan cache riwayat lokal
                 try {
                     const localHistory = JSON.parse(localStorage.getItem("siabak_history_cache") || "[]");
