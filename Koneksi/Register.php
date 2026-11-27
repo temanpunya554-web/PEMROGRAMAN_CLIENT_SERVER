@@ -57,6 +57,8 @@ function sendVerificationEmail($recipient, $verificationCode)
 
     $mailer = new PHPMailer\PHPMailer\PHPMailer(true);
     $mailer->isSMTP();
+    $mailer->Timeout = 15;
+    $mailer->getSMTPInstance()->Timelimit = 30;
     $mailer->Host = trim($smtpHost);
     $mailer->SMTPAuth = true;
     $mailer->Username = trim($smtpUsername);

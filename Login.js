@@ -47,6 +47,23 @@ const latitudeInput = document.getElementById("register-latitude");
 const longitudeInput = document.getElementById("register-longitude");
 const countryStateCache = new Map();
 
+async function sendRegistrationRequest(formData) {
+	const controller = new AbortController();
+	const timeout = window.setTimeout(() => controller.abort(), 60000);
+
+	try {
+		const response = await fetch("Koneksi/Register.php", {
+			method: "POST",
+			body: formData,
+			headers: { Accept: "application/json" },
+			signal: controller.signal,
+		});
+		return { response, result: await response.json() };
+	} finally {
+		window.clearTimeout(timeout);
+	}
+}
+
 async function fetchLocationData(url, options = {}) {
 	const controller = new AbortController();
 	const timeout = window.setTimeout(() => controller.abort(), 12000);
@@ -536,12 +553,7 @@ registerForm.addEventListener("submit", async (event) => {
 
 	try {
 		const formData = new FormData(registerForm);
-		const response = await fetch("Koneksi/Register.php", {
-			method: "POST",
-			body: formData,
-			headers: { Accept: "application/json" },
-		});
-		const result = await response.json();
+		const { response, result } = await sendRegistrationRequest(formData);
 
 		if (!response.ok || !result.success) {
 			registerMessage.textContent = result.message || "Pendaftaran gagal. Silakan coba lagi.";
@@ -579,8 +591,10 @@ registerForm.addEventListener("submit", async (event) => {
 		document.getElementById("username").value = registeredUsername;
 		document.getElementById("password").focus();
 		loginMessage.textContent = "Akun berhasil dibuat. Silakan login.";
-	} catch {
-		registerMessage.textContent = "Tidak dapat memproses pendaftaran. Pastikan Apache dan MySQL XAMPP berjalan.";
+	} catch (error) {
+		registerMessage.textContent = error && error.name === "AbortError"
+			? "Permintaan terlalu lama. Periksa koneksi SMTP dan Railway Variables, lalu coba lagi."
+			: "Tidak dapat memproses pendaftaran. Pastikan aplikasi dan database dapat diakses.";
 	} finally {
 		registerSubmitButton.disabled = false;
 	}
@@ -595,19 +609,16 @@ registerResendCodeButton.addEventListener("click", async () => {
 		const formData = new FormData(registerForm);
 		formData.set("action", "send_code");
 		formData.delete("verification_code");
-		const response = await fetch("Koneksi/Register.php", {
-			method: "POST",
-			body: formData,
-			headers: { Accept: "application/json" },
-		});
-		const result = await response.json();
+		const { response, result } = await sendRegistrationRequest(formData);
 		registerMessage.textContent = result.message || "Kode verifikasi gagal dikirim.";
 		if (response.ok && result.success) {
 			registerVerificationCode.value = "";
 			registerVerificationCode.focus();
 		}
-	} catch {
-		registerMessage.textContent = "Tidak dapat mengirim kode. Pastikan Apache, MySQL, dan konfigurasi email berjalan.";
+	} catch (error) {
+		registerMessage.textContent = error && error.name === "AbortError"
+			? "Permintaan terlalu lama. Periksa koneksi SMTP dan Railway Variables, lalu coba lagi."
+			: "Tidak dapat mengirim kode. Periksa koneksi aplikasi dan database.";
 	} finally {
 		registerResendCodeButton.disabled = false;
 		registerSubmitButton.disabled = false;
