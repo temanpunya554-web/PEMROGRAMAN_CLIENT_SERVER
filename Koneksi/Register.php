@@ -1,11 +1,11 @@
 <?php
 header("Content-Type: application/json; charset=utf-8");
 
-function respond($statusCode, $success, $message)
+function respond($statusCode, $success, $message, $extra = [])
 {
     http_response_code($statusCode);
     echo json_encode(
-        ["success" => $success, "message" => $message],
+        array_merge(["success" => $success, "message" => $message], $extra),
         JSON_UNESCAPED_UNICODE
     );
     exit;
@@ -29,8 +29,14 @@ $country = trim($_POST["country"] ?? "");
 $role = "mahasiswa";
 $password = $_POST["password"] ?? "";
 $passwordConfirm = $_POST["password_confirm"] ?? "";
+$action = trim($_POST["action"] ?? "send_code");
+$verificationCode = trim($_POST["verification_code"] ?? "");
 $latitudeValue = $_POST["latitude"] ?? "";
 $longitudeValue = $_POST["longitude"] ?? "";
+
+if (!in_array($action, ["send_code", "complete_registration"], true)) {
+    respond(400, false, "Permintaan pendaftaran tidak valid.");
+}
 
 if ($fullName === "" || mb_strlen($fullName, "UTF-8") > 100) {
     respond(400, false, "Nama lengkap wajib diisi dan maksimal 100 karakter.");
@@ -146,6 +152,20 @@ try {
         respond(500, false, "Tabel profil belum tersedia. Import Koneksi/Setup_Database.sql melalui phpMyAdmin terlebih dahulu.");
     }
 
+    $verificationTableName = "email_verification_codes";
+    $verificationTable = mysqli_prepare(
+        $conn,
+        "SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ? LIMIT 1"
+    );
+    mysqli_stmt_bind_param($verificationTable, "s", $verificationTableName);
+    mysqli_stmt_execute($verificationTable);
+    mysqli_stmt_store_result($verificationTable);
+    $verificationTableExists = mysqli_stmt_num_rows($verificationTable) === 1;
+    mysqli_stmt_close($verificationTable);
+    if (!$verificationTableExists) {
+        respond(500, false, "Tabel verifikasi email belum tersedia. Jalankan Koneksi/Migration_Email_Verification.sql terlebih dahulu.");
+    }
+
     $checkUsername = mysqli_prepare($conn, "SELECT `Username` FROM `login` WHERE `Username` = ? LIMIT 1");
     mysqli_stmt_bind_param($checkUsername, "s", $username);
     mysqli_stmt_execute($checkUsername);
@@ -192,6 +212,105 @@ try {
     mysqli_stmt_close($checkNim);
     if ($nimExists) {
         respond(409, false, "NIM sudah digunakan.");
+    }
+
+    if ($action === "send_code") {
+        mysqli_query(
+            $conn,
+            "DELETE FROM `email_verification_codes` WHERE `ExpiresAt` <= UTC_TIMESTAMP()"
+        );
+
+        $checkRecentCode = mysqli_prepare(
+            $conn,
+            "SELECT 1 FROM `email_verification_codes`
+             WHERE `Email` = ? AND `LastSentAt` > DATE_SUB(UTC_TIMESTAMP(), INTERVAL 60 SECOND)
+             LIMIT 1"
+        );
+        mysqli_stmt_bind_param($checkRecentCode, "s", $email);
+        mysqli_stmt_execute($checkRecentCode);
+        mysqli_stmt_store_result($checkRecentCode);
+        $codeSentRecently = mysqli_stmt_num_rows($checkRecentCode) > 0;
+        mysqli_stmt_close($checkRecentCode);
+        if ($codeSentRecently) {
+            respond(429, false, "Tunggu 60 detik sebelum meminta kode verifikasi baru.");
+        }
+
+        $senderEmail = getenv("MAIL_FROM_EMAIL");
+        if ($senderEmail === false || $senderEmail === "") {
+            $senderEmail = ini_get("sendmail_from");
+        }
+        if (!filter_var($senderEmail, FILTER_VALIDATE_EMAIL)) {
+            respond(500, false, "Email pengirim belum dikonfigurasi. Atur MAIL_FROM_EMAIL atau sendmail_from pada PHP.");
+        }
+
+        $verificationCode = str_pad((string) random_int(0, 999999), 6, "0", STR_PAD_LEFT);
+        $codeHash = password_hash($verificationCode, PASSWORD_DEFAULT);
+        if ($codeHash === false) {
+            throw new RuntimeException("Verification code hashing failed.");
+        }
+
+        $saveCode = mysqli_prepare(
+            $conn,
+            "INSERT INTO `email_verification_codes` (`Email`, `CodeHash`, `ExpiresAt`, `LastSentAt`, `Attempts`)
+             VALUES (?, ?, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 10 MINUTE), UTC_TIMESTAMP(), 0)
+             ON DUPLICATE KEY UPDATE `CodeHash` = VALUES(`CodeHash`),
+               `ExpiresAt` = VALUES(`ExpiresAt`), `LastSentAt` = VALUES(`LastSentAt`), `Attempts` = 0"
+        );
+        mysqli_stmt_bind_param($saveCode, "ss", $email, $codeHash);
+        mysqli_stmt_execute($saveCode);
+        mysqli_stmt_close($saveCode);
+
+        $subject = "Kode verifikasi pendaftaran SIABAK";
+        $message = "Kode verifikasi pendaftaran akun SIABAK kamu adalah: " . $verificationCode .
+            "\n\nKode berlaku selama 10 menit. Jika kamu tidak meminta kode ini, abaikan email ini.";
+        $headers = "From: SIABAK <" . $senderEmail . ">\r\n" .
+            "Content-Type: text/plain; charset=UTF-8";
+        if (!mail($email, $subject, $message, $headers)) {
+            $deleteCode = mysqli_prepare(
+                $conn,
+                "DELETE FROM `email_verification_codes` WHERE `Email` = ? AND `CodeHash` = ?"
+            );
+            mysqli_stmt_bind_param($deleteCode, "ss", $email, $codeHash);
+            mysqli_stmt_execute($deleteCode);
+            mysqli_stmt_close($deleteCode);
+            error_log("Registration verification email could not be sent.");
+            respond(500, false, "Email verifikasi gagal dikirim. Periksa konfigurasi SMTP/server email.");
+        }
+
+        respond(200, true, "Kode verifikasi telah dikirim ke email kamu.", ["verification_required" => true]);
+    }
+
+    if (!preg_match('/\A[0-9]{6}\z/', $verificationCode)) {
+        respond(400, false, "Masukkan kode verifikasi 6 digit yang dikirim ke email.");
+    }
+
+    $findCode = mysqli_prepare(
+        $conn,
+        "SELECT `CodeHash`, `ExpiresAt` > UTC_TIMESTAMP() AS `IsValid`, `Attempts`
+         FROM `email_verification_codes` WHERE `Email` = ? LIMIT 1"
+    );
+    mysqli_stmt_bind_param($findCode, "s", $email);
+    mysqli_stmt_execute($findCode);
+    $codeResult = mysqli_stmt_get_result($findCode);
+    $codeRecord = mysqli_fetch_assoc($codeResult);
+    mysqli_stmt_close($findCode);
+
+    if (!$codeRecord || !(bool) $codeRecord["IsValid"]) {
+        respond(400, false, "Kode verifikasi tidak ditemukan atau sudah kedaluwarsa. Minta kode baru.");
+    }
+    if ((int) $codeRecord["Attempts"] >= 5) {
+        respond(429, false, "Terlalu banyak percobaan. Minta kode verifikasi baru.");
+    }
+    if (!password_verify($verificationCode, $codeRecord["CodeHash"])) {
+        $updateAttempts = mysqli_prepare(
+            $conn,
+            "UPDATE `email_verification_codes` SET `Attempts` = `Attempts` + 1
+             WHERE `Email` = ? AND `ExpiresAt` > UTC_TIMESTAMP() AND `Attempts` < 5"
+        );
+        mysqli_stmt_bind_param($updateAttempts, "s", $email);
+        mysqli_stmt_execute($updateAttempts);
+        mysqli_stmt_close($updateAttempts);
+        respond(400, false, "Kode verifikasi salah.");
     }
 
     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
@@ -250,6 +369,19 @@ try {
     );
     mysqli_stmt_execute($insertProfile);
     mysqli_stmt_close($insertProfile);
+
+    $consumeCode = mysqli_prepare(
+        $conn,
+        "DELETE FROM `email_verification_codes`
+         WHERE `Email` = ? AND `CodeHash` = ? AND `ExpiresAt` > UTC_TIMESTAMP() AND `Attempts` < 5"
+    );
+    mysqli_stmt_bind_param($consumeCode, "ss", $email, $codeRecord["CodeHash"]);
+    mysqli_stmt_execute($consumeCode);
+    $codeConsumed = mysqli_stmt_affected_rows($consumeCode) === 1;
+    mysqli_stmt_close($consumeCode);
+    if (!$codeConsumed) {
+        throw new RuntimeException("Verification code expired or was already used.");
+    }
 
     mysqli_commit($conn);
     $transactionStarted = false;

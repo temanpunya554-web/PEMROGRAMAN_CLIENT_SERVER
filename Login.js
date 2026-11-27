@@ -20,6 +20,10 @@ const openRegisterButton = document.getElementById("open-register");
 const openLoginButton = document.getElementById("open-login");
 const registerForm = document.getElementById("register-form");
 const registerMessage = document.getElementById("register-message");
+const registerVerificationFields = document.getElementById("register-verification-fields");
+const registerVerificationCode = document.getElementById("register-verification-code");
+const registerResendCodeButton = document.getElementById("register-resend-code");
+const registerSubmitButton = document.getElementById("register-submit");
 const countrySelect = document.getElementById("register-country");
 const countryManualInput = document.getElementById("register-country-manual");
 const countryStatus = document.getElementById("country-status");
@@ -516,7 +520,6 @@ registerForm.addEventListener("submit", async (event) => {
 	event.preventDefault();
 	const password = registerForm.elements.password.value;
 	const passwordConfirm = registerForm.elements.password_confirm.value;
-	const submitButton = registerForm.querySelector('[type="submit"]');
 
 	if (password !== passwordConfirm) {
 		registerMessage.textContent = "Kata sandi dan konfirmasi kata sandi tidak sama.";
@@ -524,13 +527,18 @@ registerForm.addEventListener("submit", async (event) => {
 		return;
 	}
 
-	submitButton.disabled = true;
-	registerMessage.textContent = "Membuat akun...";
+	const action = registerVerificationFields.hidden ? "send_code" : "complete_registration";
+	registerForm.elements.action.value = action;
+	registerSubmitButton.disabled = true;
+	registerMessage.textContent = action === "send_code"
+		? "Mengirim kode verifikasi..."
+		: "Memverifikasi kode dan membuat akun...";
 
 	try {
+		const formData = new FormData(registerForm);
 		const response = await fetch("Koneksi/Register.php", {
 			method: "POST",
-			body: new FormData(registerForm),
+			body: formData,
 			headers: { Accept: "application/json" },
 		});
 		const result = await response.json();
@@ -540,8 +548,20 @@ registerForm.addEventListener("submit", async (event) => {
 			return;
 		}
 
+		if (result.verification_required) {
+			registerVerificationFields.hidden = false;
+			registerVerificationCode.required = true;
+			registerSubmitButton.textContent = "Verifikasi dan buat akun";
+			registerMessage.textContent = result.message;
+			registerVerificationCode.focus();
+			return;
+		}
+
 		const registeredUsername = registerForm.elements.username.value;
 		registerForm.reset();
+		registerVerificationFields.hidden = true;
+		registerVerificationCode.required = false;
+		registerSubmitButton.textContent = "Kirim kode verifikasi";
 		if (!countrySelect.disabled) {
 			countrySelect.value = "Indonesia";
 			configureLocationFields(countrySelect.value);
@@ -562,7 +582,35 @@ registerForm.addEventListener("submit", async (event) => {
 	} catch {
 		registerMessage.textContent = "Tidak dapat memproses pendaftaran. Pastikan Apache dan MySQL XAMPP berjalan.";
 	} finally {
-		submitButton.disabled = false;
+		registerSubmitButton.disabled = false;
+	}
+});
+
+registerResendCodeButton.addEventListener("click", async () => {
+	registerResendCodeButton.disabled = true;
+	registerSubmitButton.disabled = true;
+	registerMessage.textContent = "Mengirim ulang kode verifikasi...";
+
+	try {
+		const formData = new FormData(registerForm);
+		formData.set("action", "send_code");
+		formData.delete("verification_code");
+		const response = await fetch("Koneksi/Register.php", {
+			method: "POST",
+			body: formData,
+			headers: { Accept: "application/json" },
+		});
+		const result = await response.json();
+		registerMessage.textContent = result.message || "Kode verifikasi gagal dikirim.";
+		if (response.ok && result.success) {
+			registerVerificationCode.value = "";
+			registerVerificationCode.focus();
+		}
+	} catch {
+		registerMessage.textContent = "Tidak dapat mengirim kode. Pastikan Apache, MySQL, dan konfigurasi email berjalan.";
+	} finally {
+		registerResendCodeButton.disabled = false;
+		registerSubmitButton.disabled = false;
 	}
 });
 

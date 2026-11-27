@@ -193,6 +193,7 @@
         <button class="close-button" id="close-register" type="button" aria-label="Tutup">&times;</button>
         <h2 id="register-title">Daftar Akun</h2>
         <form id="register-form">
+          <input name="action" type="hidden" value="send_code" />
           <label for="register-name">Nama lengkap:</label>
           <input id="register-name" name="full_name" type="text" autocomplete="name" maxlength="100" required />
 
@@ -206,6 +207,12 @@
 
           <label for="register-email">Email:</label>
           <input id="register-email" name="email" type="email" autocomplete="email" maxlength="254" required />
+          <div id="register-verification-fields" hidden>
+            <label for="register-verification-code">Kode verifikasi email:</label>
+            <input id="register-verification-code" name="verification_code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" aria-describedby="register-verification-help" />
+            <small class="form-help" id="register-verification-help">Masukkan 6 digit kode yang dikirim ke email kamu.</small>
+            <button class="text-button" id="register-resend-code" type="button">Kirim ulang kode</button>
+          </div>
 
           <label for="register-gender">Jenis kelamin:</label>
           <select id="register-gender" name="gender" required>
@@ -286,7 +293,7 @@
             <input id="register-longitude" name="longitude" type="hidden" />
           </fieldset>
 
-          <button class="submit-button" type="submit">Buat akun</button>
+          <button class="submit-button" id="register-submit" type="submit">Kirim kode verifikasi</button>
           <p class="login-message" id="register-message" role="status"></p>
           <p class="auth-switch">Sudah punya akun? <button class="text-button" id="open-login" type="button">Login</button></p>
         </form>

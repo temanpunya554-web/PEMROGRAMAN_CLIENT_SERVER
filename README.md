@@ -4,11 +4,12 @@
 
 1. Jalankan Apache dan MySQL pada XAMPP.
 2. Jika database belum dibuat, import `Koneksi/Setup_Database.sql` melalui phpMyAdmin.
-3. Jalankan `Koneksi/Migration_Profile_Roles.sql` melalui phpMyAdmin untuk membuat tabel profil terpisah dan menyalin data profil lama.
-4. Jalankan `Koneksi/Migration_Admin_Dosen_Gender.sql` dan `Koneksi/Migration_Dosen_Profile_Enhancement.sql` untuk memastikan kolom jenis kelamin dan NIP pada profil Dosen tersedia.
-5. Jalankan `Koneksi/Migration_Room_Geofencing.sql` untuk mengaktifkan koordinat GPS dan radius geofencing pada ruangan serta riwayat absensi.
-6. Jalankan `Koneksi/Migration_Student_Authenticators.sql` untuk menyiapkan penyimpanan kredensial WebAuthn.
-7. Buka `http://localhost/PEMROGRAMAN%20CLIENT%20SERVER/SIABAK.html`.
+3. Jalankan `Koneksi/Migration_Email_Verification.sql` melalui phpMyAdmin untuk menyiapkan kode verifikasi email (tabel ini juga dibuat oleh `Setup_Database.sql` untuk instalasi baru).
+4. Jalankan `Koneksi/Migration_Profile_Roles.sql` melalui phpMyAdmin untuk membuat tabel profil terpisah dan menyalin data profil lama.
+5. Jalankan `Koneksi/Migration_Admin_Dosen_Gender.sql` dan `Koneksi/Migration_Dosen_Profile_Enhancement.sql` untuk memastikan kolom jenis kelamin dan NIP pada profil Dosen tersedia.
+6. Jalankan `Koneksi/Migration_Room_Geofencing.sql` untuk mengaktifkan koordinat GPS dan radius geofencing pada ruangan serta riwayat absensi.
+7. Jalankan `Koneksi/Migration_Student_Authenticators.sql` untuk menyiapkan penyimpanan kredensial WebAuthn.
+8. Buka `http://localhost/PEMROGRAMAN%20CLIENT%20SERVER/SIABAK.html`.
 
 ## Konfigurasi database
 
@@ -21,6 +22,30 @@ Atur variabel lingkungan berikut pada runtime PHP:
 - `DB_PORT` (opsional, default `3306`)
 
 Nama `SIABAK_DB_HOST`, `SIABAK_DB_USERNAME`, `SIABAK_DB_PASSWORD`, `SIABAK_DB_NAME`, dan `SIABAK_DB_PORT` juga didukung sebagai alias. Pada Railway, masukkan variabel tersebut di bagian **Variables** pada layanan aplikasi dan restart/redeploy layanan. Untuk XAMPP, atur variabel lingkungan Windows sebelum menjalankan Apache, lalu restart Apache. Jangan simpan nilai rahasia di source code atau commit ke Git.
+
+## Verifikasi email pendaftaran
+
+Pendaftaran mengirim kode 6 digit ke email yang dimasukkan. Kode berlaku 10 menit, pengiriman ulang dibatasi satu kali per 60 detik, dan maksimal 5 percobaan kode.
+
+PHP harus dapat mengirim email. Untuk XAMPP, atur `sendmail_from` dan `sendmail_path` pada `C:\xampp\php\php.ini`, misalnya:
+
+```ini
+sendmail_from = alamat-pengirim@example.com
+sendmail_path = C:\xampp\sendmail\sendmail.exe -t
+```
+
+Kemudian atur SMTP pada `C:\xampp\sendmail\sendmail.ini` dengan detail dari penyedia email:
+
+```ini
+smtp_server=smtp.example.com
+smtp_port=587
+smtp_ssl=auto
+auth_username=alamat-pengirim@example.com
+auth_password=KATA_SANDI_APLIKASI
+force_sender=alamat-pengirim@example.com
+```
+
+Jika `MAIL_FROM_EMAIL` tersedia di environment PHP, nilainya digunakan sebagai alamat pengirim; jika tidak, aplikasi memakai `sendmail_from`. Untuk Gmail, gunakan App Password, bukan kata sandi akun biasa. Jangan masukkan kredensial sungguhan ke README atau Git. Restart Apache setelah konfigurasi dan pastikan email bisa dikirim sebelum mencoba pendaftaran.
 
 ## Peran akun
 

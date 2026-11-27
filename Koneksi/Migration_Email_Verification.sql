@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS `email_verification_codes` (
+  `Email` VARCHAR(254) NOT NULL,
+  `CodeHash` VARCHAR(255) NOT NULL,
+  `ExpiresAt` DATETIME NOT NULL,
+  `LastSentAt` DATETIME NOT NULL,
+  `Attempts` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY (`Email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
