@@ -25,29 +25,30 @@ Nama `SIABAK_DB_HOST`, `SIABAK_DB_USERNAME`, `SIABAK_DB_PASSWORD`, `SIABAK_DB_NA
 
 ## Verifikasi email pendaftaran
 
-Pendaftaran mengirim kode 6 digit ke email yang dimasukkan. Kode berlaku 10 menit, pengiriman ulang dibatasi satu kali per 60 detik, dan maksimal 5 percobaan kode. Email dikirim melalui SMTP menggunakan PHPMailer; Railway tidak menyediakan server SMTP untuk aplikasi secara otomatis.
+Pendaftaran mengirim kode 6 digit ke email yang dimasukkan. Kode berlaku 10 menit, pengiriman ulang dibatasi satu kali per 60 detik, dan maksimal 5 percobaan kode. Untuk Railway, email dikirim melalui Gmail API over HTTPS, bukan SMTP.
 
 ### Railway
 
-1. Buat/verifikasi akun pada penyedia email yang menyediakan kredensial SMTP.
-2. Pada Railway, buka project, pilih service aplikasi PHP, lalu **Variables**.
-3. Tambahkan variabel berikut menggunakan nilai dari penyedia SMTP:
+1. Buat project di [Google Cloud Console](https://console.cloud.google.com/) dan aktifkan **Gmail API**.
+2. Konfigurasikan **OAuth consent screen**. Jika status aplikasi **Testing**, tambahkan akun Gmail pengirim sebagai test user; refresh token dalam mode Testing umumnya kedaluwarsa setelah 7 hari.
+3. Buat OAuth Client ID tipe **Web application**, lalu tambahkan `https://developers.google.com/oauthplayground` sebagai authorized redirect URI.
+4. Buka [OAuth 2.0 Playground](https://developers.google.com/oauthplayground), klik pengaturan (ikon roda gigi), centang **Use your own OAuth credentials**, lalu masukkan Client ID dan Client Secret.
+5. Pada langkah pemilihan scope, masukkan `https://www.googleapis.com/auth/gmail.send`, klik **Authorize APIs**, login dengan akun Gmail pengirim, lalu pilih **Exchange authorization code for tokens**. Simpan **refresh token** dengan aman.
+6. Pada Railway, buka project, pilih service aplikasi PHP, lalu **Variables** dan tambahkan:
 
-   - `SMTP_HOST`
-   - `SMTP_PORT` (umumnya `587` untuk TLS atau `465` untuk SSL)
-   - `SMTP_USERNAME`
-   - `SMTP_PASSWORD`
-   - `SMTP_ENCRYPTION` (`tls` untuk port 587 atau `ssl` untuk port 465)
-   - `MAIL_FROM_EMAIL` (alamat pengirim yang telah diverifikasi oleh penyedia)
+   - `GOOGLE_CLIENT_ID`
+   - `GOOGLE_CLIENT_SECRET`
+   - `GOOGLE_REFRESH_TOKEN`
+   - `MAIL_FROM_EMAIL` (alamat Gmail yang memberikan otorisasi)
    - `MAIL_FROM_NAME` (opsional, default `SIABAK`)
 
-4. Deploy ulang service aplikasi. Jangan menaruh kredensial SMTP di source code atau commit ke Git.
+7. Deploy ulang service aplikasi. Jangan menaruh credential OAuth atau refresh token di source code, screenshot publik, atau Git.
 
-Nilai SMTP tidak berasal dari Filess.io; Filess.io hanya menjadi penyedia database pada setup ini. Untuk Gmail, gunakan App Password dan pastikan alamat pengirim diizinkan. Kredensial tetap disimpan sebagai Railway Variables, bukan di repository.
+Jika menggunakan aplikasi Google OAuth dalam status **Testing**, refresh token biasanya hanya berlaku 7 hari. Untuk penggunaan berkelanjutan, aplikasi perlu dipindahkan ke **In production** dan memenuhi persyaratan verifikasi Google untuk scope Gmail. Filess.io tetap hanya menyediakan database; Google mengirim email melalui Gmail API.
 
 ### XAMPP lokal
 
-Jalankan `composer install` dari folder project, lalu atur variabel SMTP yang sama di environment Windows sebelum memulai Apache. Restart Apache setelah mengubah environment. Dependency Composer diunduh otomatis saat Docker image dibuat untuk deployment.
+Aktifkan ekstensi `curl` pada PHP XAMPP dan atur variabel OAuth yang sama di environment Windows sebelum memulai Apache. Restart Apache setelah mengubah environment.
 
 ## Peran akun
 

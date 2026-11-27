@@ -1,8 +1,0 @@
-{
-  "name": "temanpunya554-web/pemrograman-client-server",
-  "description": "SIABAK attendance and account management application",
-  "type": "project",
-  "require": {
-    "phpmailer/phpmailer": "^6.10"
-  }
-}

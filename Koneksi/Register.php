@@ -13,67 +13,95 @@ function respond($statusCode, $success, $message, $extra = [])
 
 function sendVerificationEmail($recipient, $verificationCode)
 {
-    $smtpHost = getenv("SMTP_HOST");
-    $smtpPortValue = getenv("SMTP_PORT");
-    $smtpUsername = getenv("SMTP_USERNAME");
-    $smtpPassword = getenv("SMTP_PASSWORD");
-    $smtpEncryption = getenv("SMTP_ENCRYPTION");
+    $clientId = getenv("GOOGLE_CLIENT_ID");
+    $clientSecret = getenv("GOOGLE_CLIENT_SECRET");
+    $refreshToken = getenv("GOOGLE_REFRESH_TOKEN");
     $senderEmail = getenv("MAIL_FROM_EMAIL");
     $senderName = getenv("MAIL_FROM_NAME");
 
     if (
-        $smtpHost === false || trim($smtpHost) === "" ||
-        $smtpUsername === false || trim($smtpUsername) === "" ||
-        $smtpPassword === false || $smtpPassword === "" ||
+        $clientId === false || trim($clientId) === "" ||
+        $clientSecret === false || trim($clientSecret) === "" ||
+        $refreshToken === false || trim($refreshToken) === "" ||
         $senderEmail === false || !filter_var($senderEmail, FILTER_VALIDATE_EMAIL)
     ) {
-        throw new RuntimeException("SMTP configuration is incomplete.");
+        throw new RuntimeException("Google Gmail API configuration is incomplete.");
     }
 
-    if ($smtpPortValue === false || $smtpPortValue === "") {
-        $smtpPortValue = "587";
-    }
-    $smtpPort = filter_var(
-        $smtpPortValue,
-        FILTER_VALIDATE_INT,
-        ["options" => ["min_range" => 1, "max_range" => 65535]]
-    );
-    if ($smtpPort === false) {
-        throw new RuntimeException("SMTP_PORT must be between 1 and 65535.");
+    if (!extension_loaded("curl")) {
+        throw new RuntimeException("The PHP cURL extension is required for Gmail API requests.");
     }
 
-    $smtpEncryption = strtolower($smtpEncryption === false || $smtpEncryption === ""
-        ? "tls"
-        : trim($smtpEncryption));
-    if (!in_array($smtpEncryption, ["tls", "ssl"], true)) {
-        throw new RuntimeException("SMTP_ENCRYPTION must be tls or ssl.");
+    $tokenHandle = curl_init("https://oauth2.googleapis.com/token");
+    if ($tokenHandle === false) {
+        throw new RuntimeException("Could not initialize the Google OAuth request.");
+    }
+    curl_setopt_array($tokenHandle, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => http_build_query([
+            "client_id" => trim($clientId),
+            "client_secret" => trim($clientSecret),
+            "refresh_token" => trim($refreshToken),
+            "grant_type" => "refresh_token",
+        ]),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 10,
+        CURLOPT_TIMEOUT => 20,
+        CURLOPT_HTTPHEADER => ["Content-Type: application/x-www-form-urlencoded"],
+    ]);
+    $tokenResponse = curl_exec($tokenHandle);
+    $tokenStatus = (int) curl_getinfo($tokenHandle, CURLINFO_RESPONSE_CODE);
+    $tokenError = curl_error($tokenHandle);
+    curl_close($tokenHandle);
+
+    if ($tokenResponse === false) {
+        throw new RuntimeException("Google OAuth request failed: " . $tokenError);
+    }
+    $tokenData = json_decode($tokenResponse, true);
+    if ($tokenStatus < 200 || $tokenStatus >= 300 || empty($tokenData["access_token"])) {
+        throw new RuntimeException("Google OAuth rejected the Gmail API credentials (HTTP " . $tokenStatus . ").");
     }
 
-    $autoloadPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . "vendor" . DIRECTORY_SEPARATOR . "autoload.php";
-    if (!is_file($autoloadPath)) {
-        throw new RuntimeException("Composer dependencies are missing. Run composer install.");
-    }
-    require_once $autoloadPath;
-
-    $mailer = new PHPMailer\PHPMailer\PHPMailer(true);
-    $mailer->isSMTP();
-    $mailer->Timeout = 15;
-    $mailer->getSMTPInstance()->Timelimit = 30;
-    $mailer->Host = trim($smtpHost);
-    $mailer->SMTPAuth = true;
-    $mailer->Username = trim($smtpUsername);
-    $mailer->Password = $smtpPassword;
-    $mailer->Port = $smtpPort;
-    $mailer->SMTPSecure = $smtpEncryption === "ssl"
-        ? PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS
-        : PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-    $mailer->CharSet = PHPMailer\PHPMailer\PHPMailer::CHARSET_UTF8;
-    $mailer->setFrom($senderEmail, $senderName === false || trim($senderName) === "" ? "SIABAK" : trim($senderName));
-    $mailer->addAddress($recipient);
-    $mailer->Subject = "Kode verifikasi pendaftaran SIABAK";
-    $mailer->Body = "Kode verifikasi pendaftaran akun SIABAK kamu adalah: " . $verificationCode .
+    $senderName = $senderName === false || trim($senderName) === "" ? "SIABAK" : trim($senderName);
+    $senderName = preg_replace('/[^A-Za-z0-9 ._-]/', "", $senderName);
+    $subject = "Kode verifikasi pendaftaran SIABAK";
+    $body = "Kode verifikasi pendaftaran akun SIABAK kamu adalah: " . $verificationCode .
         "\n\nKode berlaku selama 10 menit. Jika kamu tidak meminta kode ini, abaikan email ini.";
-    $mailer->send();
+    $mimeMessage = "From: " . $senderName . " <" . $senderEmail . ">\r\n" .
+        "To: " . $recipient . "\r\n" .
+        "Subject: " . $subject . "\r\n" .
+        "MIME-Version: 1.0\r\n" .
+        "Content-Type: text/plain; charset=UTF-8\r\n" .
+        "Content-Transfer-Encoding: base64\r\n\r\n" .
+        chunk_split(base64_encode($body), 76, "\r\n");
+    $rawMessage = rtrim(strtr(base64_encode($mimeMessage), "+/", "-_"), "=");
+
+    $messageHandle = curl_init("https://gmail.googleapis.com/gmail/v1/users/me/messages/send");
+    if ($messageHandle === false) {
+        throw new RuntimeException("Could not initialize the Gmail API request.");
+    }
+    curl_setopt_array($messageHandle, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode(["raw" => $rawMessage]),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 10,
+        CURLOPT_TIMEOUT => 20,
+        CURLOPT_HTTPHEADER => [
+            "Authorization: Bearer " . $tokenData["access_token"],
+            "Content-Type: application/json",
+        ],
+    ]);
+    $messageResponse = curl_exec($messageHandle);
+    $messageStatus = (int) curl_getinfo($messageHandle, CURLINFO_RESPONSE_CODE);
+    $messageError = curl_error($messageHandle);
+    curl_close($messageHandle);
+
+    if ($messageResponse === false) {
+        throw new RuntimeException("Gmail API request failed: " . $messageError);
+    }
+    if ($messageStatus < 200 || $messageStatus >= 300) {
+        throw new RuntimeException("Gmail API rejected the message (HTTP " . $messageStatus . ").");
+    }
 }
 
 if ($_SERVER["REQUEST_METHOD"] !== "POST") {
@@ -331,7 +359,7 @@ try {
             respond(
                 502,
                 false,
-                "Email gagal dikirim. Periksa SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, SMTP_ENCRYPTION, dan MAIL_FROM_EMAIL."
+                "Email gagal dikirim melalui Gmail API. Periksa GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN, dan MAIL_FROM_EMAIL serta Railway Logs."
             );
         }
 
