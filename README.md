@@ -25,27 +25,29 @@ Nama `SIABAK_DB_HOST`, `SIABAK_DB_USERNAME`, `SIABAK_DB_PASSWORD`, `SIABAK_DB_NA
 
 ## Verifikasi email pendaftaran
 
-Pendaftaran mengirim kode 6 digit ke email yang dimasukkan. Kode berlaku 10 menit, pengiriman ulang dibatasi satu kali per 60 detik, dan maksimal 5 percobaan kode.
+Pendaftaran mengirim kode 6 digit ke email yang dimasukkan. Kode berlaku 10 menit, pengiriman ulang dibatasi satu kali per 60 detik, dan maksimal 5 percobaan kode. Email dikirim melalui SMTP menggunakan PHPMailer; Railway tidak menyediakan server SMTP untuk aplikasi secara otomatis.
 
-PHP harus dapat mengirim email. Untuk XAMPP, atur `sendmail_from` dan `sendmail_path` pada `C:\xampp\php\php.ini`, misalnya:
+### Railway
 
-```ini
-sendmail_from = alamat-pengirim@example.com
-sendmail_path = C:\xampp\sendmail\sendmail.exe -t
-```
+1. Buat/verifikasi akun pada penyedia email yang menyediakan kredensial SMTP.
+2. Pada Railway, buka project, pilih service aplikasi PHP, lalu **Variables**.
+3. Tambahkan variabel berikut menggunakan nilai dari penyedia SMTP:
 
-Kemudian atur SMTP pada `C:\xampp\sendmail\sendmail.ini` dengan detail dari penyedia email:
+   - `SMTP_HOST`
+   - `SMTP_PORT` (umumnya `587` untuk TLS atau `465` untuk SSL)
+   - `SMTP_USERNAME`
+   - `SMTP_PASSWORD`
+   - `SMTP_ENCRYPTION` (`tls` untuk port 587 atau `ssl` untuk port 465)
+   - `MAIL_FROM_EMAIL` (alamat pengirim yang telah diverifikasi oleh penyedia)
+   - `MAIL_FROM_NAME` (opsional, default `SIABAK`)
 
-```ini
-smtp_server=smtp.example.com
-smtp_port=587
-smtp_ssl=auto
-auth_username=alamat-pengirim@example.com
-auth_password=KATA_SANDI_APLIKASI
-force_sender=alamat-pengirim@example.com
-```
+4. Deploy ulang service aplikasi. Jangan menaruh kredensial SMTP di source code atau commit ke Git.
 
-Jika `MAIL_FROM_EMAIL` tersedia di environment PHP, nilainya digunakan sebagai alamat pengirim; jika tidak, aplikasi memakai `sendmail_from`. Untuk Gmail, gunakan App Password, bukan kata sandi akun biasa. Jangan masukkan kredensial sungguhan ke README atau Git. Restart Apache setelah konfigurasi dan pastikan email bisa dikirim sebelum mencoba pendaftaran.
+Nilai SMTP tidak berasal dari Filess.io; Filess.io hanya menjadi penyedia database pada setup ini. Untuk Gmail, gunakan App Password dan pastikan alamat pengirim diizinkan. Kredensial tetap disimpan sebagai Railway Variables, bukan di repository.
+
+### XAMPP lokal
+
+Jalankan `composer install` dari folder project, lalu atur variabel SMTP yang sama di environment Windows sebelum memulai Apache. Restart Apache setelah mengubah environment. Dependency Composer diunduh otomatis saat Docker image dibuat untuk deployment.
 
 ## Peran akun
 

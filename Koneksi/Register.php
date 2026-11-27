@@ -11,6 +11,69 @@ function respond($statusCode, $success, $message, $extra = [])
     exit;
 }
 
+function sendVerificationEmail($recipient, $verificationCode)
+{
+    $smtpHost = getenv("SMTP_HOST");
+    $smtpPortValue = getenv("SMTP_PORT");
+    $smtpUsername = getenv("SMTP_USERNAME");
+    $smtpPassword = getenv("SMTP_PASSWORD");
+    $smtpEncryption = getenv("SMTP_ENCRYPTION");
+    $senderEmail = getenv("MAIL_FROM_EMAIL");
+    $senderName = getenv("MAIL_FROM_NAME");
+
+    if (
+        $smtpHost === false || trim($smtpHost) === "" ||
+        $smtpUsername === false || trim($smtpUsername) === "" ||
+        $smtpPassword === false || $smtpPassword === "" ||
+        $senderEmail === false || !filter_var($senderEmail, FILTER_VALIDATE_EMAIL)
+    ) {
+        throw new RuntimeException("SMTP configuration is incomplete.");
+    }
+
+    if ($smtpPortValue === false || $smtpPortValue === "") {
+        $smtpPortValue = "587";
+    }
+    $smtpPort = filter_var(
+        $smtpPortValue,
+        FILTER_VALIDATE_INT,
+        ["options" => ["min_range" => 1, "max_range" => 65535]]
+    );
+    if ($smtpPort === false) {
+        throw new RuntimeException("SMTP_PORT must be between 1 and 65535.");
+    }
+
+    $smtpEncryption = strtolower($smtpEncryption === false || $smtpEncryption === ""
+        ? "tls"
+        : trim($smtpEncryption));
+    if (!in_array($smtpEncryption, ["tls", "ssl"], true)) {
+        throw new RuntimeException("SMTP_ENCRYPTION must be tls or ssl.");
+    }
+
+    $autoloadPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . "vendor" . DIRECTORY_SEPARATOR . "autoload.php";
+    if (!is_file($autoloadPath)) {
+        throw new RuntimeException("Composer dependencies are missing. Run composer install.");
+    }
+    require_once $autoloadPath;
+
+    $mailer = new PHPMailer\PHPMailer\PHPMailer(true);
+    $mailer->isSMTP();
+    $mailer->Host = trim($smtpHost);
+    $mailer->SMTPAuth = true;
+    $mailer->Username = trim($smtpUsername);
+    $mailer->Password = $smtpPassword;
+    $mailer->Port = $smtpPort;
+    $mailer->SMTPSecure = $smtpEncryption === "ssl"
+        ? PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS
+        : PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+    $mailer->CharSet = PHPMailer\PHPMailer\PHPMailer::CHARSET_UTF8;
+    $mailer->setFrom($senderEmail, $senderName === false || trim($senderName) === "" ? "SIABAK" : trim($senderName));
+    $mailer->addAddress($recipient);
+    $mailer->Subject = "Kode verifikasi pendaftaran SIABAK";
+    $mailer->Body = "Kode verifikasi pendaftaran akun SIABAK kamu adalah: " . $verificationCode .
+        "\n\nKode berlaku selama 10 menit. Jika kamu tidak meminta kode ini, abaikan email ini.";
+    $mailer->send();
+}
+
 if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     respond(405, false, "Metode tidak diizinkan.");
 }
@@ -235,14 +298,6 @@ try {
             respond(429, false, "Tunggu 60 detik sebelum meminta kode verifikasi baru.");
         }
 
-        $senderEmail = getenv("MAIL_FROM_EMAIL");
-        if ($senderEmail === false || $senderEmail === "") {
-            $senderEmail = ini_get("sendmail_from");
-        }
-        if (!filter_var($senderEmail, FILTER_VALIDATE_EMAIL)) {
-            respond(500, false, "Email pengirim belum dikonfigurasi. Atur MAIL_FROM_EMAIL atau sendmail_from pada PHP.");
-        }
-
         $verificationCode = str_pad((string) random_int(0, 999999), 6, "0", STR_PAD_LEFT);
         $codeHash = password_hash($verificationCode, PASSWORD_DEFAULT);
         if ($codeHash === false) {
@@ -260,12 +315,9 @@ try {
         mysqli_stmt_execute($saveCode);
         mysqli_stmt_close($saveCode);
 
-        $subject = "Kode verifikasi pendaftaran SIABAK";
-        $message = "Kode verifikasi pendaftaran akun SIABAK kamu adalah: " . $verificationCode .
-            "\n\nKode berlaku selama 10 menit. Jika kamu tidak meminta kode ini, abaikan email ini.";
-        $headers = "From: SIABAK <" . $senderEmail . ">\r\n" .
-            "Content-Type: text/plain; charset=UTF-8";
-        if (!mail($email, $subject, $message, $headers)) {
+        try {
+            sendVerificationEmail($email, $verificationCode);
+        } catch (Throwable $error) {
             $deleteCode = mysqli_prepare(
                 $conn,
                 "DELETE FROM `email_verification_codes` WHERE `Email` = ? AND `CodeHash` = ?"
@@ -273,8 +325,12 @@ try {
             mysqli_stmt_bind_param($deleteCode, "ss", $email, $codeHash);
             mysqli_stmt_execute($deleteCode);
             mysqli_stmt_close($deleteCode);
-            error_log("Registration verification email could not be sent.");
-            respond(500, false, "Email verifikasi gagal dikirim. Periksa konfigurasi SMTP/server email.");
+            error_log("Registration verification email failed: " . $error->getMessage());
+            respond(
+                502,
+                false,
+                "Email gagal dikirim. Periksa SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, SMTP_ENCRYPTION, dan MAIL_FROM_EMAIL."
+            );
         }
 
         respond(200, true, "Kode verifikasi telah dikirim ke email kamu.", ["verification_required" => true]);
